@@ -636,6 +636,7 @@
                 '<div class="field">' +
                   '<label>Número</label>' +
                   '<input class="input" type="number" min="1" data-field="numero" value="' + (p.numero || "") + '" />' +
+                  '<small style="color:var(--text-muted);display:block;margin-top:4px">Debe ser único</small>' +
                 '</div>' +
                 '<div class="field">' +
                   '<label>Fecha</label>' +
@@ -979,7 +980,8 @@
     }
 
     function startNewPresupuesto() {
-      const num = state.settings.siguienteNumero || (state.presupuestos.length + 1);
+      const num = getNextBudgetNumber();
+      state.settings.siguienteNumero = num;
       draft = {
         id: uuid(),
         numero: num,
@@ -1009,6 +1011,15 @@
       render();
     }
 
+    function getNextBudgetNumber() {
+      const maxNumero = state.presupuestos.reduce(function (max, presupuesto) {
+        const numero = parseInt(presupuesto && presupuesto.numero, 10);
+        if (!Number.isFinite(numero) || numero < 1) return max;
+        return Math.max(max, numero);
+      }, 0);
+      return maxNumero + 1;
+    }
+
     function saveDraft(silent) {
       if (!draft) return;
       // Don't save completely empty new ones
@@ -1017,25 +1028,30 @@
       });
       const exists = state.presupuestos.find(function (x) { return x.id === draft.id; });
       if (isEmpty && !exists) return;
+      draft.numero = Math.max(1, parseInt(draft.numero, 10) || 1);
+      const duplicate = state.presupuestos.find(function (x) {
+        return x.id !== draft.id && (parseInt(x.numero, 10) || 0) === draft.numero;
+      });
+      if (duplicate) {
+        toast("Ese número ya existe");
+        return;
+      }
 
       draft.modificado = new Date().toISOString();
       const idx = state.presupuestos.findIndex(function (x) { return x.id === draft.id; });
       if (idx === -1) {
         state.presupuestos.push(JSON.parse(JSON.stringify(draft)));
-        // Increment next number if we used the suggested one
-        if (draft.numero >= (state.settings.siguienteNumero || 1)) {
-          state.settings.siguienteNumero = (parseInt(draft.numero, 10) || 0) + 1;
-        }
       } else {
         state.presupuestos[idx] = JSON.parse(JSON.stringify(draft));
       }
+      state.settings.siguienteNumero = getNextBudgetNumber();
       saveState();
       originalDraft = deepClone(draft);
     }
 
     async function duplicatePresupuesto() {
       saveDraft(true);
-      const num = state.settings.siguienteNumero || (state.presupuestos.length + 1);
+      const num = getNextBudgetNumber();
       const copy = JSON.parse(JSON.stringify(draft));
       copy.id = uuid();
       copy.numero = num;
@@ -1043,7 +1059,7 @@
       copy.creado = new Date().toISOString();
       delete copy.modificado;
       state.presupuestos.push(copy);
-      state.settings.siguienteNumero = num + 1;
+      state.settings.siguienteNumero = getNextBudgetNumber();
       saveState();
       draft = JSON.parse(JSON.stringify(copy));
       currentPresupuestoId = copy.id;
@@ -1092,6 +1108,7 @@
           // ensure required structure
           state.settings = Object.assign({}, DEFAULT_STATE.settings, state.settings || {});
           state.settings.emisor = Object.assign({}, DEFAULT_STATE.settings.emisor, state.settings.emisor || {});
+          state.settings.siguienteNumero = getNextBudgetNumber();
           saveState();
           render();
           toast("Importado correctamente");
