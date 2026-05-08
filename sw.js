@@ -1,5 +1,5 @@
 // Service worker for Presupuestos PWA
-const CACHE_NAME = "presupuestos-v1";
+const CACHE_NAME = "presupuestos-v2";
 const PRECACHE = [
   "./",
   "./index.html",
@@ -7,7 +7,7 @@ const PRECACHE = [
   "./icon.svg",
   "./icon-192.png",
   "./icon-512.png",
-  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+  "./vendor/jspdf.umd.min.js"
 ];
 
 self.addEventListener("install", function (event) {
