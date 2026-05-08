@@ -352,6 +352,7 @@
     let currentView = "home"; // home | editor | settings
     let currentPresupuestoId = null;
     let draft = null; // working copy when editing
+    let originalDraft = null; // snapshot for unsaved changes detection
 
     // ---------- HELPERS ----------
     function uuid() {
@@ -404,6 +405,39 @@
         .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     }
 
+
+    function deepClone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function normalizeDraftForCompare(p) {
+      if (!p) return null;
+      return {
+        numero: p.numero || "",
+        fecha: p.fecha || "",
+        cliente: {
+          nombre: (p.cliente && p.cliente.nombre) || "",
+          direccion: (p.cliente && p.cliente.direccion) || "",
+          localidad: (p.cliente && p.cliente.localidad) || ""
+        },
+        encabezado: p.encabezado || "",
+        lineas: (p.lineas || []).map(function (l) {
+          return {
+            descripcion: (l && l.descripcion) || "",
+            precio: l && l.precio != null ? l.precio : ""
+          };
+        }),
+        notas: p.notas || "",
+        ivaActivo: !!p.ivaActivo,
+        ivaPorcentaje: p.ivaPorcentaje || 0
+      };
+    }
+
+    function hasDraftChanges(currentDraft, initialDraft) {
+      if (!currentDraft || !initialDraft) return false;
+      return JSON.stringify(normalizeDraftForCompare(currentDraft)) !== JSON.stringify(normalizeDraftForCompare(initialDraft));
+    }
+
     function toast(msg) {
       const el = document.createElement("div");
       el.className = "toast";
@@ -439,6 +473,37 @@
         back.querySelector("[data-ok]").onclick = function () { close(true); };
         back.querySelector("[data-cancel]").onclick = function () { close(false); };
         back.onclick = function (e) { if (e.target === back) close(false); };
+      });
+    }
+
+
+    function chooseDialog(opts) {
+      return new Promise(function (resolve) {
+        const back = document.createElement("div");
+        back.className = "modal-backdrop";
+        back.innerHTML =
+          '<div class="modal">' +
+            '<h3>' + escapeHtml(opts.title) + '</h3>' +
+            '<p>' + escapeHtml(opts.message) + '</p>' +
+            '<div class="modal-actions" style="display:flex;flex-direction:column;gap:8px">' +
+              '<button class="btn btn-primary" data-choice="save">' + escapeHtml(opts.saveText || "Guardar y salir") + '</button>' +
+              '<button class="btn btn-danger" data-choice="discard">' + escapeHtml(opts.discardText || "Salir sin guardar") + '</button>' +
+              '<button class="btn btn-ghost" data-choice="cancel">' + escapeHtml(opts.cancelText || "Cancelar") + '</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(back);
+        requestAnimationFrame(function () { back.classList.add("show"); });
+
+        function close(result) {
+          back.classList.remove("show");
+          setTimeout(function () { back.remove(); }, 200);
+          resolve(result);
+        }
+
+        back.querySelectorAll("[data-choice]").forEach(function (btn) {
+          btn.onclick = function () { close(btn.getAttribute("data-choice")); };
+        });
+        back.onclick = function (e) { if (e.target === back) close("cancel"); };
       });
     }
 
@@ -571,6 +636,7 @@
                 '<div class="field">' +
                   '<label>Número</label>' +
                   '<input class="input" type="number" min="1" data-field="numero" value="' + (p.numero || "") + '" />' +
+                  '<small style="color:var(--text-muted);display:block;margin-top:4px">Debe ser único</small>' +
                 '</div>' +
                 '<div class="field">' +
                   '<label>Fecha</label>' +
@@ -833,12 +899,25 @@
         render();
       } else if (action === "back") {
         if (currentView === "editor") {
-          // ask if there are unsaved changes? Simpler: always save silently then leave
-          saveDraft(true);
+          if (hasDraftChanges(draft, originalDraft)) {
+            const choice = await chooseDialog({
+              title: "Cambios sin guardar",
+              message: "¿Quieres guardar antes de salir?",
+              saveText: "Guardar y salir",
+              discardText: "Salir sin guardar",
+              cancelText: "Cancelar"
+            });
+            if (choice === "save") {
+              saveDraft();
+            } else if (choice === "cancel") {
+              return;
+            }
+          }
         }
         currentView = "home";
         currentPresupuestoId = null;
         draft = null;
+        originalDraft = null;
         render();
       } else if (action === "new") {
         startNewPresupuesto();
@@ -901,7 +980,8 @@
     }
 
     function startNewPresupuesto() {
-      const num = state.settings.siguienteNumero || (state.presupuestos.length + 1);
+      const num = getNextBudgetNumber();
+      state.settings.siguienteNumero = num;
       draft = {
         id: uuid(),
         numero: num,
@@ -915,6 +995,7 @@
         creado: new Date().toISOString()
       };
       currentPresupuestoId = draft.id;
+      originalDraft = deepClone(draft);
       currentView = "editor";
       render();
     }
@@ -925,8 +1006,18 @@
       // deep clone to draft
       draft = JSON.parse(JSON.stringify(p));
       currentPresupuestoId = id;
+      originalDraft = deepClone(draft);
       currentView = "editor";
       render();
+    }
+
+    function getNextBudgetNumber() {
+      const maxNumero = state.presupuestos.reduce(function (max, presupuesto) {
+        const numero = parseInt(presupuesto && presupuesto.numero, 10);
+        if (!Number.isFinite(numero) || numero < 1) return max;
+        return Math.max(max, numero);
+      }, 0);
+      return maxNumero + 1;
     }
 
     function saveDraft(silent) {
@@ -937,24 +1028,30 @@
       });
       const exists = state.presupuestos.find(function (x) { return x.id === draft.id; });
       if (isEmpty && !exists) return;
+      draft.numero = Math.max(1, parseInt(draft.numero, 10) || 1);
+      const duplicate = state.presupuestos.find(function (x) {
+        return x.id !== draft.id && (parseInt(x.numero, 10) || 0) === draft.numero;
+      });
+      if (duplicate) {
+        toast("Ese número ya existe");
+        return;
+      }
 
       draft.modificado = new Date().toISOString();
       const idx = state.presupuestos.findIndex(function (x) { return x.id === draft.id; });
       if (idx === -1) {
         state.presupuestos.push(JSON.parse(JSON.stringify(draft)));
-        // Increment next number if we used the suggested one
-        if (draft.numero >= (state.settings.siguienteNumero || 1)) {
-          state.settings.siguienteNumero = (parseInt(draft.numero, 10) || 0) + 1;
-        }
       } else {
         state.presupuestos[idx] = JSON.parse(JSON.stringify(draft));
       }
+      state.settings.siguienteNumero = getNextBudgetNumber();
       saveState();
+      originalDraft = deepClone(draft);
     }
 
     async function duplicatePresupuesto() {
       saveDraft(true);
-      const num = state.settings.siguienteNumero || (state.presupuestos.length + 1);
+      const num = getNextBudgetNumber();
       const copy = JSON.parse(JSON.stringify(draft));
       copy.id = uuid();
       copy.numero = num;
@@ -962,7 +1059,7 @@
       copy.creado = new Date().toISOString();
       delete copy.modificado;
       state.presupuestos.push(copy);
-      state.settings.siguienteNumero = num + 1;
+      state.settings.siguienteNumero = getNextBudgetNumber();
       saveState();
       draft = JSON.parse(JSON.stringify(copy));
       currentPresupuestoId = copy.id;
