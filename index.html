@@ -352,6 +352,7 @@
     let currentView = "home"; // home | editor | settings
     let currentPresupuestoId = null;
     let draft = null; // working copy when editing
+    let originalDraft = null; // snapshot for unsaved changes detection
 
     // ---------- HELPERS ----------
     function uuid() {
@@ -404,6 +405,39 @@
         .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     }
 
+
+    function deepClone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function normalizeDraftForCompare(p) {
+      if (!p) return null;
+      return {
+        numero: p.numero || "",
+        fecha: p.fecha || "",
+        cliente: {
+          nombre: (p.cliente && p.cliente.nombre) || "",
+          direccion: (p.cliente && p.cliente.direccion) || "",
+          localidad: (p.cliente && p.cliente.localidad) || ""
+        },
+        encabezado: p.encabezado || "",
+        lineas: (p.lineas || []).map(function (l) {
+          return {
+            descripcion: (l && l.descripcion) || "",
+            precio: l && l.precio != null ? l.precio : ""
+          };
+        }),
+        notas: p.notas || "",
+        ivaActivo: !!p.ivaActivo,
+        ivaPorcentaje: p.ivaPorcentaje || 0
+      };
+    }
+
+    function hasDraftChanges(currentDraft, initialDraft) {
+      if (!currentDraft || !initialDraft) return false;
+      return JSON.stringify(normalizeDraftForCompare(currentDraft)) !== JSON.stringify(normalizeDraftForCompare(initialDraft));
+    }
+
     function toast(msg) {
       const el = document.createElement("div");
       el.className = "toast";
@@ -439,6 +473,37 @@
         back.querySelector("[data-ok]").onclick = function () { close(true); };
         back.querySelector("[data-cancel]").onclick = function () { close(false); };
         back.onclick = function (e) { if (e.target === back) close(false); };
+      });
+    }
+
+
+    function chooseDialog(opts) {
+      return new Promise(function (resolve) {
+        const back = document.createElement("div");
+        back.className = "modal-backdrop";
+        back.innerHTML =
+          '<div class="modal">' +
+            '<h3>' + escapeHtml(opts.title) + '</h3>' +
+            '<p>' + escapeHtml(opts.message) + '</p>' +
+            '<div class="modal-actions" style="display:flex;flex-direction:column;gap:8px">' +
+              '<button class="btn btn-primary" data-choice="save">' + escapeHtml(opts.saveText || "Guardar y salir") + '</button>' +
+              '<button class="btn btn-danger" data-choice="discard">' + escapeHtml(opts.discardText || "Salir sin guardar") + '</button>' +
+              '<button class="btn btn-ghost" data-choice="cancel">' + escapeHtml(opts.cancelText || "Cancelar") + '</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(back);
+        requestAnimationFrame(function () { back.classList.add("show"); });
+
+        function close(result) {
+          back.classList.remove("show");
+          setTimeout(function () { back.remove(); }, 200);
+          resolve(result);
+        }
+
+        back.querySelectorAll("[data-choice]").forEach(function (btn) {
+          btn.onclick = function () { close(btn.getAttribute("data-choice")); };
+        });
+        back.onclick = function (e) { if (e.target === back) close("cancel"); };
       });
     }
 
@@ -833,12 +898,25 @@
         render();
       } else if (action === "back") {
         if (currentView === "editor") {
-          // ask if there are unsaved changes? Simpler: always save silently then leave
-          saveDraft(true);
+          if (hasDraftChanges(draft, originalDraft)) {
+            const choice = await chooseDialog({
+              title: "Cambios sin guardar",
+              message: "¿Quieres guardar antes de salir?",
+              saveText: "Guardar y salir",
+              discardText: "Salir sin guardar",
+              cancelText: "Cancelar"
+            });
+            if (choice === "save") {
+              saveDraft();
+            } else if (choice === "cancel") {
+              return;
+            }
+          }
         }
         currentView = "home";
         currentPresupuestoId = null;
         draft = null;
+        originalDraft = null;
         render();
       } else if (action === "new") {
         startNewPresupuesto();
@@ -915,6 +993,7 @@
         creado: new Date().toISOString()
       };
       currentPresupuestoId = draft.id;
+      originalDraft = deepClone(draft);
       currentView = "editor";
       render();
     }
@@ -925,6 +1004,7 @@
       // deep clone to draft
       draft = JSON.parse(JSON.stringify(p));
       currentPresupuestoId = id;
+      originalDraft = deepClone(draft);
       currentView = "editor";
       render();
     }
@@ -950,6 +1030,7 @@
         state.presupuestos[idx] = JSON.parse(JSON.stringify(draft));
       }
       saveState();
+      originalDraft = deepClone(draft);
     }
 
     async function duplicatePresupuesto() {
