@@ -14,7 +14,16 @@ export function createActions(ctx){
     else if(action==='pdf'){ saveDraft(); await generatePDF(getUI().draft,state); }
     else if(action==='add-line'){ ui.draft.lineas.push({descripcion:'',precio:''}); render(); }
     else if(action==='reset'){ state.presupuestos=[]; state.settings.siguienteNumero=1; saveState(state); render(); }
-    else if(action==='export'){ const blob=new Blob([JSON.stringify({type:'presupuestos-backup',version:1,state},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='presupuestos-backup.json'; a.click(); }
+    else if(action==='export'){
+      const file = new File([JSON.stringify({type:'presupuestos-backup',version:1,state},null,2)], 'presupuestos-backup.json', {type:'application/json'});
+      if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+        try{ await navigator.share({files:[file], title:'Backup presupuestos'}); }
+        catch(e){ if(e && e.name!=='AbortError') console.error(e); }
+      }else{
+        const a=document.createElement('a'); a.href=URL.createObjectURL(file); a.download=file.name; a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+      }
+    }
     else if(action==='import'){ const input=document.createElement('input'); input.type='file'; input.accept='.json,application/json'; input.onchange=async()=>{const f=input.files[0]; if(!f) return; const data=JSON.parse(await f.text()); const next=data.state; next.settings=Object.assign({},DEFAULT_STATE.settings,next.settings||{}); next.settings.emisor=Object.assign({},DEFAULT_STATE.settings.emisor,next.settings.emisor||{}); setState(next); saveState(next); render(); }; input.click(); }
   }
   return { handleAction, saveSettings, saveDraft };

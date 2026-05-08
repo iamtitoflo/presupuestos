@@ -9,5 +9,14 @@ export async function generatePDF(p, state) {
   let y=48; (p.lineas||[]).forEach((l,i)=>{ doc.text(`${i+1}. ${(l.descripcion||'')}`,20,y); doc.text(`${formatPrice(l.precio||0)}€`,190,y,{align:'right'}); y+=8; });
   const sub=calcSubtotal(p), total=calcTotal(p); doc.text(`Subtotal: ${formatPrice(sub)}€`,20,y+10); doc.text(`Total: ${formatPrice(total)}€`,20,y+18);
   if (p.notas) { doc.addPage(); doc.text('NOTAS',20,20); doc.text(doc.splitTextToSize(p.notas,170),20,30); }
-  doc.save(`Presupuesto_${String(p.numero||0).padStart(3,'0')}.pdf`);
+  const fileName = `Presupuesto_${String(p.numero||0).padStart(3,'0')}.pdf`;
+  if(navigator.share && navigator.canShare){
+    const blob = doc.output('blob');
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+    if(navigator.canShare({ files:[file] })){
+      try{ await navigator.share({ files:[file], title:fileName }); return; }
+      catch(e){ if(e && e.name!=='AbortError') console.error(e); }
+    }
+  }
+  doc.save(fileName);
 }
