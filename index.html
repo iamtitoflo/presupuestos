@@ -293,6 +293,16 @@
       padding: 6px 12px; border-radius: 8px; font-weight: 600;
       cursor: pointer; flex-shrink: 0;
     }
+    .simple-title { font-size: 16px; font-weight: 700; margin: 0 0 12px; }
+    .simple-mode .section-header { font-size: 13px; }
+    .simple-mode .field label { font-size: 15px; font-weight: 600; }
+    .simple-mode .input, .simple-mode .textarea { font-size: 18px; padding: 14px; }
+    .quick-templates { display: flex; gap: 8px; margin-bottom: 12px; }
+    .quick-templates .btn { flex: 0 0 auto; min-height: 42px; padding: 10px 14px; }
+    .advanced-toggle-btn {
+      width: 100%; border: 1px solid var(--border); background: var(--bg);
+      border-radius: var(--radius-sm); padding: 10px 12px; font-weight: 600; color: var(--text);
+    }
   </style>
 </head>
 <body>
@@ -318,6 +328,7 @@
           "--- FORMA DE PAGO: deberá abonarse el 40% al comienzo de los trabajos.\n• A mitad de los trabajos realizados debe estar pagado el 80% del presupuesto.\n• Al terminar se deberá abonar el 20% restante del total del presupuesto.",
         ivaActivo: false,
         ivaPorcentaje: 21,
+        modoSimple: false,
         siguienteNumero: 1
       },
       presupuestos: []
@@ -592,6 +603,8 @@
 
     function renderEditor() {
       const p = draft;
+      const simpleMode = !!state.settings.modoSimple;
+      const showAdvanced = !simpleMode || !!window.__showAdvancedOptions;
       const subtotal = calcSubtotal(p);
       const total = calcTotal(p);
       const isNew = !state.presupuestos.find(function (x) { return x.id === p.id; });
@@ -604,108 +617,48 @@
             '<div class="spacer"></div>' +
             (p.lineas.length > 1 ?
               '<button class="line-remove" data-remove-line="' + i + '" aria-label="Eliminar línea">' + ICONS.trash + '</button>'
-              : "") +
+              : '') +
           '</div>' +
           '<div class="field">' +
             '<label>Descripción</label>' +
-            '<textarea class="textarea" data-line-field="descripcion" data-idx="' + i + '" placeholder="Ej: Cambiar puerta de entrada por una de aluminio">' + escapeHtml(l.descripcion || "") + '</textarea>' +
+            '<textarea class="textarea" data-line-field="descripcion" data-idx="' + i + '" placeholder="Ej: Cambiar puerta de entrada por una de aluminio">' + escapeHtml(l.descripcion || '') + '</textarea>' +
           '</div>' +
           '<div class="field">' +
             '<label>Precio</label>' +
             '<div class="price-input">' +
-              '<input class="input" type="number" inputmode="decimal" step="0.01" min="0" data-line-field="precio" data-idx="' + i + '" placeholder="0,00" value="' + (l.precio === "" || l.precio == null ? "" : l.precio) + '" />' +
+              '<input class="input" type="number" inputmode="decimal" step="0.01" min="0" data-line-field="precio" data-idx="' + i + '" placeholder="0,00" value="' + (l.precio === '' || l.precio == null ? '' : l.precio) + '" />' +
             '</div>' +
           '</div>' +
         '</div>';
-      }).join("");
+      }).join('');
 
       return (
         '<header class="header">' +
           '<button class="icon-btn" data-action="back" aria-label="Volver">' + ICONS.back + '</button>' +
-          '<h1>' + (isNew ? "Nuevo presupuesto" : "Presupuesto Nº " + String(p.numero).padStart(3, "0")) + '</h1>' +
+          '<h1>' + (isNew ? 'Nuevo presupuesto' : 'Presupuesto Nº ' + String(p.numero).padStart(3, '0')) + '</h1>' +
           (!isNew ?
             '<button class="icon-btn" data-action="duplicate" aria-label="Duplicar">' + ICONS.copy + '</button>' +
             '<button class="icon-btn" data-action="delete" aria-label="Eliminar">' + ICONS.trash + '</button>'
-            : "") +
+            : '') +
         '</header>' +
-        '<main class="content">' +
-          '<div class="section">' +
-            '<div class="section-header">Datos del presupuesto</div>' +
-            '<div class="section-body">' +
-              '<div class="row">' +
-                '<div class="field">' +
-                  '<label>Número</label>' +
-                  '<input class="input" type="number" min="1" data-field="numero" value="' + (p.numero || "") + '" />' +
-                  '<small style="color:var(--text-muted);display:block;margin-top:4px">Debe ser único</small>' +
-                '</div>' +
-                '<div class="field">' +
-                  '<label>Fecha</label>' +
-                  '<input class="input" type="date" data-field="fecha" value="' + (p.fecha || "") + '" />' +
-                '</div>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-
-          '<div class="section">' +
-            '<div class="section-header">Cliente</div>' +
-            '<div class="section-body">' +
-              '<div class="field">' +
-                '<label>Nombre</label>' +
-                '<input class="input" data-field="cliente.nombre" value="' + escapeHtml(p.cliente.nombre || "") + '" placeholder="Nombre y apellidos" />' +
-              '</div>' +
-              '<div class="field">' +
-                '<label>Dirección</label>' +
-                '<input class="input" data-field="cliente.direccion" value="' + escapeHtml(p.cliente.direccion || "") + '" placeholder="Calle, número" />' +
-              '</div>' +
-              '<div class="field">' +
-                '<label>Localidad</label>' +
-                '<input class="input" data-field="cliente.localidad" value="' + escapeHtml(p.cliente.localidad || "") + '" placeholder="Pueblo o ciudad" />' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-
-          '<div class="section">' +
-            '<div class="section-header">Conceptos</div>' +
-            '<div class="section-body">' +
-              '<div class="field">' +
-                '<label>Encabezado de la sección (opcional)</label>' +
-                '<input class="input" data-field="encabezado" value="' + escapeHtml(p.encabezado || "") + '" placeholder="Déjalo vacío si no hace falta" />' +
-              '</div>' +
-              lineasHTML +
-              '<button class="add-line-btn" data-action="add-line">' + ICONS.plus + ' Añadir línea</button>' +
-            '</div>' +
-          '</div>' +
-
-          '<div class="total-card">' +
-            '<div>' +
-              '<div class="label">Total</div>' +
-              (p.ivaActivo ? '<div style="font-size:12px;opacity:.85;margin-top:2px">Subtotal ' + formatPrice(subtotal) + '€ + IVA ' + p.ivaPorcentaje + '%</div>' : '') +
-            '</div>' +
-            '<div class="amount">' + formatPrice(total) + '€</div>' +
-          '</div>' +
-
-          '<div class="section">' +
-            '<div class="section-header">Notas</div>' +
-            '<div class="section-body">' +
-              '<div class="field">' +
-                '<textarea class="textarea" data-field="notas" rows="6" placeholder="Forma de pago, condiciones...">' + escapeHtml(p.notas || "") + '</textarea>' +
-              '</div>' +
-              '<div class="toggle-row">' +
-                '<div class="label-text">Aplicar IVA<small>' + (p.ivaActivo ? p.ivaPorcentaje + "% sobre el subtotal" : "Desactivado") + '</small></div>' +
-                '<div class="toggle ' + (p.ivaActivo ? "on" : "") + '" data-action="toggle-iva"></div>' +
-              '</div>' +
-              (p.ivaActivo ?
-                '<div class="field">' +
-                  '<label>Porcentaje de IVA</label>' +
-                  '<input class="input" type="number" min="0" max="100" step="0.01" data-field="ivaPorcentaje" value="' + p.ivaPorcentaje + '" />' +
-                '</div>' : "") +
-            '</div>' +
-          '</div>' +
+        '<main class="content ' + (simpleMode ? 'simple-mode' : '') + '">' +
+          (simpleMode ? '<p class="simple-title">Modo simple: completa solo lo esencial.</p>' : '') +
+          '<div class="section"><div class="section-header">Datos del presupuesto</div><div class="section-body">' +
+            (simpleMode ? '<button class="advanced-toggle-btn" data-action="toggle-advanced">Opciones avanzadas ' + (showAdvanced ? '▲' : '▼') + '</button>' : '') +
+            (showAdvanced ? '<div class="row"><div class="field"><label>Número</label><input class="input" type="number" min="1" data-field="numero" value="' + (p.numero || '') + '" /></div><div class="field"><label>Fecha</label><input class="input" type="date" data-field="fecha" value="' + (p.fecha || '') + '" /></div></div>' : '') +
+          '</div></div>' +
+          '<div class="section"><div class="section-header">Cliente</div><div class="section-body">' +
+            '<div class="field"><label>Nombre</label><input class="input" data-field="cliente.nombre" value="' + escapeHtml(p.cliente.nombre || '') + '" placeholder="Nombre y apellidos" /></div>' +
+            (showAdvanced ? '<div class="field"><label>Dirección</label><input class="input" data-field="cliente.direccion" value="' + escapeHtml(p.cliente.direccion || '') + '" placeholder="Calle, número" /></div><div class="field"><label>Localidad</label><input class="input" data-field="cliente.localidad" value="' + escapeHtml(p.cliente.localidad || '') + '" placeholder="Pueblo o ciudad" /></div>' : '') +
+          '</div></div>' +
+          '<div class="section"><div class="section-header">Conceptos</div><div class="section-body">' +
+            (simpleMode ? '<div class="quick-templates"><button class="btn btn-secondary" data-action="tpl-mano-obra">Mano de obra</button><button class="btn btn-secondary" data-action="tpl-materiales">Materiales</button></div>' : '') +
+            (showAdvanced ? '<div class="field"><label>Encabezado de la sección (opcional)</label><input class="input" data-field="encabezado" value="' + escapeHtml(p.encabezado || '') + '" placeholder="Déjalo vacío si no hace falta" /></div>' : '') +
+            lineasHTML + '<button class="add-line-btn" data-action="add-line">' + ICONS.plus + ' Añadir línea</button></div></div>' +
+          '<div class="total-card"><div><div class="label">Total</div>' + (p.ivaActivo ? '<div style="font-size:12px;opacity:.85;margin-top:2px">Subtotal ' + formatPrice(subtotal) + '€ + IVA ' + p.ivaPorcentaje + '%</div>' : '') + '</div><div class="amount">' + formatPrice(total) + '€</div></div>' +
+          (showAdvanced ? '<div class="section"><div class="section-header">Notas</div><div class="section-body"><div class="field"><textarea class="textarea" data-field="notas" rows="6" placeholder="Forma de pago, condiciones...">' + escapeHtml(p.notas || '') + '</textarea></div><div class="toggle-row"><div class="label-text">Aplicar IVA<small>' + (p.ivaActivo ? p.ivaPorcentaje + '% sobre el subtotal' : 'Desactivado') + '</small></div><div class="toggle ' + (p.ivaActivo ? 'on' : '') + '" data-action="toggle-iva"></div></div>' + (p.ivaActivo ? '<div class="field"><label>Porcentaje de IVA</label><input class="input" type="number" min="0" max="100" step="0.01" data-field="ivaPorcentaje" value="' + p.ivaPorcentaje + '" /></div>' : '') + '</div></div>' : '') +
         '</main>' +
-        '<footer class="bottom-bar">' +
-          '<button class="btn btn-secondary" data-action="save">' + ICONS.save + ' Guardar</button>' +
-          '<button class="btn btn-primary" data-action="pdf">' + ICONS.pdf + ' Generar PDF</button>' +
-        '</footer>'
+        '<footer class="bottom-bar"><button class="btn btn-secondary" data-action="save">' + ICONS.save + ' Guardar</button><button class="btn btn-primary" data-action="pdf">' + ICONS.pdf + ' Guardar y generar PDF</button></footer>'
       );
     }
 
@@ -747,6 +700,16 @@
               '<div class="field">' +
                 '<label>Texto que se rellenará al crear un presupuesto</label>' +
                 '<textarea class="textarea" rows="6" data-setting="notasDefecto">' + escapeHtml(s.notasDefecto || "") + '</textarea>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="section">' +
+            '<div class="section-header">Editor</div>' +
+            '<div class="section-body">' +
+              '<div class="toggle-row">' +
+                '<div class="label-text">Modo simple<small>' + (s.modoSimple ? 'Editor con solo campos esenciales' : 'Editor completo') + '</small></div>' +
+                '<div class="toggle ' + (s.modoSimple ? 'on' : '') + '" data-action="toggle-simple-mode"></div>' +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -957,6 +920,19 @@
       } else if (action === "toggle-iva-default") {
         state.settings.ivaActivo = !state.settings.ivaActivo;
         saveState();
+        render();
+      } else if (action === "toggle-simple-mode") {
+        state.settings.modoSimple = !state.settings.modoSimple;
+        saveState();
+        render();
+      } else if (action === "toggle-advanced") {
+        window.__showAdvancedOptions = !window.__showAdvancedOptions;
+        render();
+      } else if (action === "tpl-mano-obra") {
+        draft.lineas = [{ descripcion: 'Mano de obra - jornada completa', precio: '' }, { descripcion: 'Desplazamiento y preparación', precio: '' }];
+        render();
+      } else if (action === "tpl-materiales") {
+        draft.lineas = [{ descripcion: 'Material principal', precio: '' }, { descripcion: 'Consumibles y fijaciones', precio: '' }, { descripcion: 'Transporte de materiales', precio: '' }];
         render();
       } else if (action === "export") {
         exportBackup();
