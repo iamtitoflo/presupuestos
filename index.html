@@ -990,6 +990,64 @@
       toast("Copia de seguridad descargada");
     }
 
+    function validateBackup(data) {
+      if (!data || typeof data !== "object") throw new Error("Archivo no válido");
+      if (Object.prototype.hasOwnProperty.call(data, "type") && data.type !== "presupuestos-backup") {
+        throw new Error("Tipo de backup no compatible");
+      }
+      if (!data.state || typeof data.state !== "object") throw new Error("Falta el estado");
+      if (!data.state.settings || typeof data.state.settings !== "object") throw new Error("Ajustes no válidos");
+      if (!Array.isArray(data.state.presupuestos)) throw new Error("Lista de presupuestos no válida");
+
+      const nextState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+      nextState.version = typeof data.state.version === "number" ? data.state.version : DEFAULT_STATE.version;
+      nextState.settings = Object.assign({}, DEFAULT_STATE.settings, data.state.settings || {});
+      nextState.settings.emisor = Object.assign({}, DEFAULT_STATE.settings.emisor, nextState.settings.emisor || {});
+
+      let imported = 0;
+      let discarded = 0;
+
+      nextState.presupuestos = data.state.presupuestos.reduce(function (acc, p) {
+        const valid = p
+          && typeof p === "object"
+          && p.id != null
+          && p.numero != null
+          && p.fecha != null
+          && p.cliente && typeof p.cliente === "object"
+          && Array.isArray(p.lineas);
+
+        if (!valid) {
+          discarded += 1;
+          return acc;
+        }
+
+        const safePresupuesto = {
+          id: p.id,
+          numero: parseInt(p.numero, 10) || 1,
+          fecha: String(p.fecha),
+          cliente: Object.assign({ nombre: "", direccion: "", localidad: "" }, p.cliente || {}),
+          encabezado: p.encabezado || "",
+          lineas: p.lineas.map(function (l) {
+            return {
+              descripcion: l && l.descripcion != null ? String(l.descripcion) : "",
+              precio: l && l.precio != null && l.precio !== "" ? (parseFloat(l.precio) || 0) : ""
+            };
+          }),
+          notas: p.notas || "",
+          ivaActivo: typeof p.ivaActivo === "boolean" ? p.ivaActivo : !!nextState.settings.ivaActivo,
+          ivaPorcentaje: p.ivaPorcentaje != null ? (parseFloat(p.ivaPorcentaje) || 0) : (nextState.settings.ivaPorcentaje || 21),
+          creado: p.creado || new Date().toISOString()
+        };
+        if (p.modificado) safePresupuesto.modificado = p.modificado;
+
+        acc.push(safePresupuesto);
+        imported += 1;
+        return acc;
+      }, []);
+
+      return { state: nextState, imported: imported, discarded: discarded };
+    }
+
     function importBackup() {
       const input = document.createElement("input");
       input.type = "file";
@@ -1000,20 +1058,22 @@
         try {
           const text = await file.text();
           const data = JSON.parse(text);
-          if (!data.state || !data.state.presupuestos) throw new Error("Archivo no válido");
+          const validation = validateBackup(data);
           const ok = await confirmDialog({
             title: "Importar copia de seguridad",
             message: "Esto sustituirá todos tus datos actuales por los del archivo. ¿Continuar?",
             okText: "Importar"
           });
           if (!ok) return;
-          state = data.state;
-          // ensure required structure
-          state.settings = Object.assign({}, DEFAULT_STATE.settings, state.settings || {});
-          state.settings.emisor = Object.assign({}, DEFAULT_STATE.settings.emisor, state.settings.emisor || {});
+          state = validation.state;
+          const maxNumero = state.presupuestos.reduce(function (max, p) {
+            const numero = parseInt(p.numero, 10) || 0;
+            return numero > max ? numero : max;
+          }, 0);
+          state.settings.siguienteNumero = maxNumero + 1;
           saveState();
           render();
-          toast("Importado correctamente");
+          toast("Importación completada: " + validation.imported + " importados, " + validation.discarded + " descartados");
         } catch (e) {
           toast("Error: archivo no válido");
           console.error(e);
