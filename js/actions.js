@@ -9,7 +9,7 @@ export function createActions(ctx){
   async function handleAction(action){ const ui=getUI(); const state=getState();
     if(action==='settings'){ setUI({...ui,currentView:'settings'}); render(); }
     else if(action==='back'){ setUI({...ui,currentView:'home',draft:null,currentPresupuestoId:null}); render(); }
-    else if(action==='new'){ const num=state.settings.siguienteNumero||(state.presupuestos.length+1); setUI({...ui,currentView:'editor',draft:{id:uuid(),numero:num,fecha:todayISO(),cliente:{nombre:'',direccion:'',localidad:''},lineas:[{descripcion:'',precio:''}],notas:state.settings.notasDefecto||'',ivaActivo:!!state.settings.ivaActivo,ivaPorcentaje:state.settings.ivaPorcentaje||21}}); render(); }
+    else if(action==='new'){ const num=state.settings.siguienteNumero||(state.presupuestos.length+1); setUI({...ui,currentView:'editor',draft:{id:uuid(),numero:num,fecha:todayISO(),cliente:{dni:'',nombre:'',direccion:'',localidad:''},lineas:[{descripcion:'',precio:''}],notas:state.settings.notasDefecto||'',ivaActivo:!!state.settings.ivaActivo,ivaPorcentaje:state.settings.ivaPorcentaje||21}}); render(); }
     else if(action==='save'){ saveDraft(); toast('Presupuesto guardado'); }
     else if(action==='pdf'){ saveDraft(); await generatePDF(getUI().draft,state); }
     else if(action==='add-line'){ ui.draft.lineas.push({descripcion:'',precio:''}); render(); }
