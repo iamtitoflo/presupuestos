@@ -67,7 +67,8 @@ export function createActions(ctx) {
           lineas: [{ titulo: '', descripcion: '', precio: '' }],
           notas: state.settings.notasDefecto || '',
           ivaActivo: !!state.settings.ivaActivo,
-          ivaPorcentaje: state.settings.ivaPorcentaje || 21
+          ivaPorcentaje: state.settings.ivaPorcentaje || 21,
+          validez: state.settings.validezDefecto || 30
         }
       });
       render();

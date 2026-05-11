@@ -101,6 +101,11 @@ export function renderEditor(state, draft) {
               <label>Fecha</label>
               <input class="input" type="date" data-field="fecha" value="${escapeHtml(draft.fecha || '')}"/>
             </div>
+            <div class="field field-validez">
+              <label>Validez (días)</label>
+              <input class="input" type="number" inputmode="numeric" data-field="validez"
+                value="${escapeHtml(String(draft.validez ?? 30))}" min="1"/>
+            </div>
           </div>
         </div>
       </section>
@@ -154,7 +159,7 @@ export function renderEditor(state, draft) {
       <section class="section">
         <div class="section-header">Notas y condiciones de pago</div>
         <div class="section-body">
-          <textarea class="textarea" data-field="notas" style="min-height:100px"
+          <textarea class="textarea" data-field="notas" style="min-height:160px"
             placeholder="Forma de pago, observaciones…">${escapeHtml(draft.notas || '')}</textarea>
           <div class="toggle-row" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
             <div class="label-text">
@@ -196,10 +201,23 @@ export function renderSettings(state) {
             <input class="input" data-setting="emisor.nombre" placeholder="Tu nombre o empresa"
               value="${escapeHtml(e.nombre || '')}"/>
           </div>
+          <div class="row">
+            <div class="field">
+              <label>NIF / CIF</label>
+              <input class="input" data-setting="emisor.nif" placeholder="12345678A"
+                value="${escapeHtml(e.nif || '')}"/>
+            </div>
+            <div class="field">
+              <label>Teléfono</label>
+              <input class="input" type="tel" inputmode="tel" data-setting="emisor.telefono"
+                value="${escapeHtml(e.telefono || '')}"/>
+            </div>
+          </div>
           <div class="field">
-            <label>Teléfono</label>
-            <input class="input" type="tel" inputmode="tel" data-setting="emisor.telefono"
-              value="${escapeHtml(e.telefono || '')}"/>
+            <label>Email <span class="label-optional">(opcional)</span></label>
+            <input class="input" type="email" inputmode="email" data-setting="emisor.email"
+              placeholder="correo@ejemplo.com"
+              value="${escapeHtml(e.email || '')}"/>
           </div>
           <div class="field">
             <label>Dirección</label>
@@ -224,6 +242,11 @@ export function renderSettings(state) {
       <section class="section">
         <div class="section-header">IVA por defecto</div>
         <div class="section-body">
+          <div class="field">
+            <label>Validez por defecto (días)</label>
+            <input class="input" type="number" inputmode="numeric" data-setting="validezDefecto"
+              value="${s.validezDefecto || 30}" min="1"/>
+          </div>
           <div class="toggle-row">
             <div class="label-text">
               Aplicar IVA
