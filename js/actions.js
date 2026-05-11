@@ -85,6 +85,32 @@ export function createActions(ctx) {
       ui.draft.lineas.push({ titulo: '', descripcion: '', precio: '' });
       render();
 
+    } else if (action === 'duplicate') {
+      const { draft } = ui;
+      if (!draft) return;
+      saveDraft();
+      const newNum = state.settings.siguienteNumero || (state.presupuestos.length + 1);
+      const clone = structuredClone(draft);
+      clone.id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+      clone.numero = newNum;
+      clone.fecha = new Date().toISOString().slice(0, 10);
+      state.settings.siguienteNumero = newNum + 1;
+      state.presupuestos.push(clone);
+      saveState(state);
+      toast('Presupuesto duplicado');
+      setUI({ ...ui, currentView: 'editor', currentPresupuestoId: clone.id, draft: clone });
+      render();
+
+    } else if (action === 'delete') {
+      const { draft } = ui;
+      if (!draft) return;
+      if (!confirm('¿Eliminar este presupuesto?\n\nEsta acción no se puede deshacer.')) return;
+      state.presupuestos = state.presupuestos.filter(x => x.id !== draft.id);
+      saveState(state);
+      toast('Presupuesto eliminado');
+      setUI({ ...ui, currentView: 'home', draft: null, currentPresupuestoId: null });
+      render();
+
     } else if (action === 'save-settings') {
       saveSettings();
       setUI({ ...ui, currentView: 'home' });
