@@ -1,83 +1,262 @@
 import { calcSubtotal, calcTotal, formatDate, formatPrice } from './utils.js';
-/** Genera y descarga un PDF para un presupuesto. @param {any} p @param {any} state */
+
 export async function generatePDF(p, state) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const orange = '#DD7B5C';
-  const m = 14;
-  const full = 210 - m * 2;
-  const rightX = m + full;
-  doc.setTextColor(orange);
+
+  // Colors
+  const ORANGE = '#DD7B5C';
+  const DARK = '#1E1E1E';
+  const GRAY = '#6B6B6B';
+  const WHITE = '#FFFFFF';
+  const OR_RGB = [221, 123, 92];
+
+  // Layout
+  const M = 14;           // margin
+  const PW = 210 - M * 2; // 182mm
+  const DESC_W = 142;     // description column
+  const PRICE_W = PW - DESC_W; // 40mm
+  const PRICE_X = M + DESC_W;
+  const RIGHT_X = M + PW;
+  const LH = 5.5;  // line height mm
+  const PAD = 4.5; // cell vertical padding
+
+  let y = 14;
+
+  // ── TITLE ─────────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(26);
+  doc.setTextColor(ORANGE);
+  doc.text('PRESUPUESTO', RIGHT_X, 24, { align: 'right' });
+
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(17);
-  doc.text('PRESUPUESTO', rightX, 22, { align: 'right' });
-  doc.setFontSize(11);
-  doc.setTextColor(30);
+  doc.setTextColor(GRAY);
+  doc.text(`Nº ${String(p.numero || 0).padStart(3, '0')}`, RIGHT_X, 31, { align: 'right' });
+
+  // ── EMISOR INFO ────────────────────────────────────────────────────────────
   const emisor = state.settings.emisor || {};
-  doc.text(`Teléfono: ${emisor.telefono || ''}`, m, 40);
-  doc.text(`Dirección: ${emisor.direccion || ''}`, m, 48);
-  doc.text(`CP: ${emisor.cp || ''}`, m, 56);
-  doc.text(`Nombre: ${(p.cliente && p.cliente.nombre) || ''}`, m, 72);
-  doc.text(`Fecha: ${formatDate(p.fecha)}`, 120, 72);
-  doc.text(`Dirección: ${(p.cliente && p.cliente.direccion) || ''}`, m, 80);
-  doc.text(`${(p.cliente && p.cliente.localidad) || ''}`, 120, 80);
+  let ey = 18;
+  doc.setFontSize(10);
 
-  let y = 95;
-  doc.setFillColor(221, 123, 92);
-  doc.rect(m, y, full, 9, 'F');
-  doc.setTextColor(255);
-  doc.setFont('helvetica', 'bold');
-  doc.text('DESCRIPCIÓN', m + 3, y + 6);
-  doc.text('PRECIO', rightX - 8, y + 6, { align: 'right' });
-  y += 9;
-  doc.setDrawColor(221, 123, 92);
-  doc.rect(m, y, full, 62);
-  doc.line(rightX - 30, y, rightX - 30, y + 62);
-  doc.setTextColor(20);
-  doc.setFont('helvetica', 'normal');
-
-  let ly = y + 8;
-  (p.lineas || []).forEach((l) => {
-    const desc = (l.descripcion || '').trim();
-    if (!desc) return;
-    const lines = doc.splitTextToSize(`• ${desc}`, full - 40);
-    doc.text(lines, m + 5, ly);
-    ly += lines.length * 6;
-  });
-  doc.setFontSize(12);
-  doc.text(`${formatPrice(calcTotal(p))}€`, rightX - 6, y + 55, { align: 'right' });
-
-  y += 78;
-  doc.rect(110, y, full - 96, 12);
-  doc.setTextColor(orange);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TOTAL', 122, y + 8);
-  doc.setTextColor(20);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${formatPrice(calcTotal(p))}€`, rightX - 6, y + 8, { align: 'right' });
-
-  if (p.notas) {
-    const notes = doc.splitTextToSize(p.notas, full - 6);
-    const needed = 18 + notes.length * 6;
-    const remaining = 297 - (y + 18);
-    if (needed > remaining) doc.addPage(), y = 16;
-    else y += 26;
-    doc.setTextColor(orange);
+  if (emisor.nombre) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('NOTAS', m, y);
-    doc.setTextColor(20);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
-    doc.text(notes, m, y + 10);
+    doc.setTextColor(DARK);
+    doc.text(emisor.nombre, M, ey);
+    ey += 6;
   }
-  const fileName = `Presupuesto_${String(p.numero||0).padStart(3,'0')}.pdf`;
-  if(navigator.share && navigator.canShare){
+  doc.setFont('helvetica', 'normal');
+  if (emisor.telefono) {
+    doc.setTextColor(ORANGE);
+    doc.text('Tel: ', M, ey);
+    doc.setTextColor(DARK);
+    doc.text(emisor.telefono, M + doc.getTextWidth('Tel: '), ey);
+    ey += 5.5;
+  }
+  if (emisor.direccion) {
+    doc.setTextColor(DARK);
+    doc.text(emisor.direccion, M, ey);
+    ey += 5.5;
+  }
+  const cpLoc = [emisor.cp, emisor.localidad].filter(Boolean).join('  ');
+  if (cpLoc) {
+    doc.setTextColor(DARK);
+    doc.text(cpLoc, M, ey);
+    ey += 5.5;
+  }
+
+  // ── SEPARATOR ─────────────────────────────────────────────────────────────
+  y = Math.max(ey + 4, 40);
+  doc.setDrawColor(...OR_RGB);
+  doc.setLineWidth(0.4);
+  doc.line(M, y, RIGHT_X, y);
+  y += 8;
+
+  // ── CLIENT INFO ───────────────────────────────────────────────────────────
+  const cliente = p.cliente || {};
+  doc.setFontSize(10);
+
+  function labelValue(label, value, xl, vOffset, yy) {
+    doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold');
+    doc.text(label + ':', xl, yy);
+    doc.setTextColor(DARK);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value || '', xl + vOffset, yy);
+  }
+
+  // Row 1: Nombre + Fecha
+  labelValue('Nombre', cliente.nombre || '', M, 20, y);
+  labelValue('Fecha', formatDate(p.fecha), 130, 13, y);
+  y += 7;
+
+  // Row 2: Dirección + Localidad
+  labelValue('Dirección', cliente.direccion || '', M, 24, y);
+  if (cliente.localidad) {
+    doc.setTextColor(DARK);
+    doc.setFont('helvetica', 'normal');
+    doc.text(cliente.localidad, 148, y);
+  }
+  y += 7;
+
+  // Row 3: DNI (if present)
+  if (cliente.dni) {
+    labelValue('DNI', cliente.dni, M, 12, y);
+    y += 7;
+  }
+
+  y += 5;
+
+  // ── TABLE ─────────────────────────────────────────────────────────────────
+  function drawHeader(yy) {
+    doc.setFillColor(...OR_RGB);
+    doc.rect(M, yy, PW, 10, 'F');
+    doc.setTextColor(WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('DESCRIPCIÓN', M + 4, yy + 6.5);
+    doc.text('PRECIO', RIGHT_X - 4, yy + 6.5, { align: 'right' });
+    return yy + 10;
+  }
+
+  y = drawHeader(y);
+
+  const lineas = (p.lineas || []).filter(l =>
+    (l.titulo || '').trim() || (l.descripcion || '').trim()
+  );
+
+  lineas.forEach(l => {
+    const titulo = (l.titulo || '').trim();
+    const desc = (l.descripcion || '').trim();
+    const precio = parseFloat(l.precio) || 0;
+    const maxW = DESC_W - 8;
+
+    // Build bullet lines from description (each newline → bullet)
+    const bulletLines = [];
+    if (desc) {
+      desc.split('\n').filter(s => s.trim()).forEach(raw => {
+        const trimmed = raw.trim();
+        const bullet = trimmed.startsWith('•') || trimmed.startsWith('-') ? trimmed : `• ${trimmed}`;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.splitTextToSize(bullet, maxW).forEach(line => bulletLines.push(line));
+      });
+    }
+
+    const rowH = Math.max(
+      PAD + (titulo ? LH + 1 : 0) + bulletLines.length * LH + PAD,
+      titulo && !bulletLines.length ? 14 : 12
+    );
+
+    // Page break check
+    if (y + rowH > 282) {
+      doc.addPage();
+      y = 14;
+      y = drawHeader(y);
+    }
+
+    // Cell borders
+    doc.setDrawColor(...OR_RGB);
+    doc.setLineWidth(0.2);
+    doc.rect(M, y, PW, rowH);
+    doc.line(PRICE_X, y, PRICE_X, y + rowH);
+
+    let cy = y + PAD + LH;
+
+    if (titulo) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(DARK);
+      doc.text(titulo, M + 4, cy);
+      cy += LH + 1;
+    }
+
+    if (bulletLines.length > 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(DARK);
+      doc.text(bulletLines, M + 4, cy);
+    }
+
+    // Price right-aligned, centered vertically in price column
+    if (precio > 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(DARK);
+      doc.text(`${formatPrice(precio)}€`, RIGHT_X - 4, y + rowH / 2 + 1.5, { align: 'right' });
+    }
+
+    y += rowH;
+  });
+
+  // ── TOTAL ROW ─────────────────────────────────────────────────────────────
+  if (y + 14 > 282) { doc.addPage(); y = 14; }
+  y += 4;
+
+  doc.setDrawColor(...OR_RGB);
+  doc.setLineWidth(0.6);
+  doc.rect(M, y, PW, 13);
+  doc.line(PRICE_X, y, PRICE_X, y + 13);
+
+  doc.setTextColor(ORANGE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('TOTAL', M + 4, y + 8.5);
+
+  doc.setTextColor(DARK);
+  doc.text(`${formatPrice(calcTotal(p))}€`, RIGHT_X - 4, y + 8.5, { align: 'right' });
+
+  if (p.ivaActivo && p.ivaPorcentaje) {
+    y += 15;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(GRAY);
+    doc.text(
+      `Base imponible: ${formatPrice(calcSubtotal(p))}€  +  IVA ${p.ivaPorcentaje}%  =  ${formatPrice(calcTotal(p))}€`,
+      RIGHT_X, y, { align: 'right' }
+    );
+    y += 10;
+  } else {
+    y += 18;
+  }
+
+  // ── NOTAS ─────────────────────────────────────────────────────────────────
+  if (p.notas && p.notas.trim()) {
+    if (y + 30 > 282) { doc.addPage(); y = 14; }
+
+    doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('NOTAS', M, y);
+    y += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(DARK);
+
+    p.notas.split('\n').forEach(line => {
+      if (!line.trim()) { y += 3; return; }
+      const wrapped = doc.splitTextToSize(line, PW);
+      if (y + wrapped.length * LH > 282) { doc.addPage(); y = 14; }
+      doc.text(wrapped, M, y);
+      y += wrapped.length * LH + 1.5;
+    });
+  }
+
+  // ── SHARE / SAVE ──────────────────────────────────────────────────────────
+  const clientSlug = (cliente.nombre || '').replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').trim().replace(/\s+/g, '_').slice(0, 30);
+  const fileName = `Presupuesto_${String(p.numero || 0).padStart(3, '0')}${clientSlug ? '_' + clientSlug : ''}.pdf`;
+
+  if (navigator.share && navigator.canShare) {
     const blob = doc.output('blob');
     const file = new File([blob], fileName, { type: 'application/pdf' });
-    if(navigator.canShare({ files:[file] })){
-      try{ await navigator.share({ files:[file], title:fileName }); return; }
-      catch(e){ if(e && e.name!=='AbortError') console.error(e); }
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: fileName });
+        return;
+      } catch (e) {
+        if (e && e.name !== 'AbortError') console.error(e);
+      }
     }
   }
   doc.save(fileName);
