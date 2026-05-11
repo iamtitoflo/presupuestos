@@ -3,6 +3,8 @@ export const DEFAULT_STATE = {
   settings: {
     emisor: {
       nombre: '',
+      nif: '',
+      email: '',
       telefono: '654317796',
       direccion: 'Villar del Arzobispo',
       cp: '46170',
@@ -11,6 +13,7 @@ export const DEFAULT_STATE = {
     notasDefecto: '--- FORMA DE PAGO: deberá abonarse el 40% al comienzo de los trabajos.\n• A mitad de los trabajos realizados debe estar pagado el 80% del presupuesto.\n• Al terminar se deberá abonar el 20% restante del total del presupuesto.',
     ivaActivo: false,
     ivaPorcentaje: 21,
+    validezDefecto: 30,
     siguienteNumero: 1
   },
   presupuestos: []
