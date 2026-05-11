@@ -39,6 +39,16 @@ export async function generatePDF(p, state) {
   let ey = 18;
   doc.setFontSize(10);
 
+  function infoLine(label, value) {
+    doc.setTextColor(ORANGE);
+    doc.setFont('helvetica', 'bold');
+    doc.text(label + ': ', M, ey);
+    doc.setTextColor(DARK);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value, M + doc.getTextWidth(label + ': '), ey);
+    ey += 5.5;
+  }
+
   if (emisor.nombre) {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(DARK);
@@ -46,13 +56,9 @@ export async function generatePDF(p, state) {
     ey += 6;
   }
   doc.setFont('helvetica', 'normal');
-  if (emisor.telefono) {
-    doc.setTextColor(ORANGE);
-    doc.text('Tel: ', M, ey);
-    doc.setTextColor(DARK);
-    doc.text(emisor.telefono, M + doc.getTextWidth('Tel: '), ey);
-    ey += 5.5;
-  }
+  if (emisor.nif) infoLine('NIF', emisor.nif);
+  if (emisor.telefono) infoLine('Tel', emisor.telefono);
+  if (emisor.email) infoLine('Email', emisor.email);
   if (emisor.direccion) {
     doc.setTextColor(DARK);
     doc.text(emisor.direccion, M, ey);
@@ -90,18 +96,16 @@ export async function generatePDF(p, state) {
   labelValue('Fecha', formatDate(p.fecha), 130, 13, y);
   y += 7;
 
-  // Row 2: Dirección + Localidad
-  labelValue('Dirección', cliente.direccion || '', M, 24, y);
-  if (cliente.localidad) {
-    doc.setTextColor(DARK);
-    doc.setFont('helvetica', 'normal');
-    doc.text(cliente.localidad, 148, y);
+  // Row 2: Dirección (full width)
+  if (cliente.direccion) {
+    labelValue('Dirección', cliente.direccion, M, 24, y);
+    y += 7;
   }
-  y += 7;
 
-  // Row 3: DNI (if present)
-  if (cliente.dni) {
-    labelValue('DNI', cliente.dni, M, 12, y);
+  // Row 3: Localidad + DNI
+  if (cliente.localidad || cliente.dni) {
+    if (cliente.localidad) labelValue('Localidad', cliente.localidad, M, 22, y);
+    if (cliente.dni) labelValue('DNI', cliente.dni, 120, 12, y);
     y += 7;
   }
 
@@ -242,6 +246,30 @@ export async function generatePDF(p, state) {
       y += wrapped.length * LH + 1.5;
     });
   }
+
+  // ── VALIDEZ ───────────────────────────────────────────────────────────────
+  if (p.validez) {
+    y += 4;
+    if (y + 8 > 282) { doc.addPage(); y = 14; }
+    doc.setFontSize(9);
+    doc.setTextColor(GRAY);
+    doc.setFont('helvetica', 'italic');
+    doc.text(`Este presupuesto tiene una validez de ${p.validez} días a partir de la fecha indicada.`, M, y);
+    y += 8;
+  }
+
+  // ── FIRMA ─────────────────────────────────────────────────────────────────
+  if (y + 40 > 282) { doc.addPage(); y = 14; }
+  y += 10;
+  doc.setDrawColor(...OR_RGB);
+  doc.setLineWidth(0.3);
+  doc.line(M, y + 18, M + 68, y + 18);
+  doc.line(RIGHT_X - 68, y + 18, RIGHT_X, y + 18);
+  doc.setFontSize(8.5);
+  doc.setTextColor(GRAY);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Firma y sello', M, y + 23);
+  doc.text('Firma de aceptación del cliente', RIGHT_X - 68, y + 23);
 
   // ── SHARE / SAVE ──────────────────────────────────────────────────────────
   const clientSlug = (cliente.nombre || '').replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').trim().replace(/\s+/g, '_').slice(0, 30);
