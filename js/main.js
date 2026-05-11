@@ -114,6 +114,32 @@ function attachHandlers() {
     el.addEventListener('change', actions.saveSettings);
     el.addEventListener('blur', actions.saveSettings);
   });
+
+  // IVA toggle in editor
+  const ivaToggle = root.querySelector('[data-toggle="iva"]');
+  if (ivaToggle) {
+    ivaToggle.addEventListener('click', () => {
+      ui.draft.ivaActivo = !ui.draft.ivaActivo;
+      ivaToggle.classList.toggle('on', ui.draft.ivaActivo);
+      const pctRow = document.getElementById('iva-pct-row');
+      if (pctRow) pctRow.classList.toggle('hidden', !ui.draft.ivaActivo);
+      updateTotalCard();
+      scheduleAutoSave();
+    });
+  }
+
+  // IVA toggle in settings (updates hidden input, does not auto-save)
+  const ivaSettingToggle = root.querySelector('[data-toggle="iva-setting"]');
+  if (ivaSettingToggle) {
+    ivaSettingToggle.addEventListener('click', () => {
+      ivaSettingToggle.classList.toggle('on');
+      const isOn = ivaSettingToggle.classList.contains('on');
+      const hidden = document.getElementById('ivaActivoHidden');
+      if (hidden) hidden.value = isOn ? 'true' : 'false';
+      const pctField = document.getElementById('settings-iva-pct');
+      if (pctField) pctField.classList.toggle('hidden', !isOn);
+    });
+  }
 }
 
 if ('serviceWorker' in navigator) {
