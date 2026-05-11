@@ -3,14 +3,74 @@ import { calcSubtotal, calcTotal, formatDate, formatPrice } from './utils.js';
 export async function generatePDF(p, state) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  doc.setFontSize(20); doc.text('PRESUPUESTO', 20, 20);
-  doc.setFontSize(11); doc.text(`Nº ${String(p.numero||0).padStart(3,'0')} · ${formatDate(p.fecha)}`,20,30);
-  doc.text(`DNI: ${(p.cliente&&p.cliente.dni)||''}`,20,38);
-  doc.text(`Cliente: ${(p.cliente&&p.cliente.nombre)||''}`,20,46);
-  doc.text('Precio',190,54,{align:'right'});
-  let y=62; (p.lineas||[]).forEach((l,i)=>{ doc.text(`${i+1}. ${(l.descripcion||'')}`,20,y); doc.text(`${formatPrice(l.precio||0)}€`,190,y,{align:'right'}); y+=8; });
-  const sub=calcSubtotal(p), total=calcTotal(p); doc.text(`Subtotal: ${formatPrice(sub)}€`,190,y+10,{align:'right'}); doc.text(`Total: ${formatPrice(total)}€`,190,y+18,{align:'right'});
-  if (p.notas) { doc.addPage(); doc.text('NOTAS',20,20); doc.text(doc.splitTextToSize(p.notas,170),20,30); }
+  const orange = '#DD7B5C';
+  const m = 14;
+  const full = 210 - m * 2;
+  const rightX = m + full;
+  doc.setTextColor(orange);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(17);
+  doc.text('PRESUPUESTO', rightX, 22, { align: 'right' });
+  doc.setFontSize(11);
+  doc.setTextColor(30);
+  const emisor = state.settings.emisor || {};
+  doc.text(`Teléfono: ${emisor.telefono || ''}`, m, 40);
+  doc.text(`Dirección: ${emisor.direccion || ''}`, m, 48);
+  doc.text(`CP: ${emisor.cp || ''}`, m, 56);
+  doc.text(`Nombre: ${(p.cliente && p.cliente.nombre) || ''}`, m, 72);
+  doc.text(`Fecha: ${formatDate(p.fecha)}`, 120, 72);
+  doc.text(`Dirección: ${(p.cliente && p.cliente.direccion) || ''}`, m, 80);
+  doc.text(`${(p.cliente && p.cliente.localidad) || ''}`, 120, 80);
+
+  let y = 95;
+  doc.setFillColor(221, 123, 92);
+  doc.rect(m, y, full, 9, 'F');
+  doc.setTextColor(255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DESCRIPCIÓN', m + 3, y + 6);
+  doc.text('PRECIO', rightX - 8, y + 6, { align: 'right' });
+  y += 9;
+  doc.setDrawColor(221, 123, 92);
+  doc.rect(m, y, full, 62);
+  doc.line(rightX - 30, y, rightX - 30, y + 62);
+  doc.setTextColor(20);
+  doc.setFont('helvetica', 'normal');
+
+  let ly = y + 8;
+  (p.lineas || []).forEach((l) => {
+    const desc = (l.descripcion || '').trim();
+    if (!desc) return;
+    const lines = doc.splitTextToSize(`• ${desc}`, full - 40);
+    doc.text(lines, m + 5, ly);
+    ly += lines.length * 6;
+  });
+  doc.setFontSize(12);
+  doc.text(`${formatPrice(calcTotal(p))}€`, rightX - 6, y + 55, { align: 'right' });
+
+  y += 78;
+  doc.rect(110, y, full - 96, 12);
+  doc.setTextColor(orange);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL', 122, y + 8);
+  doc.setTextColor(20);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${formatPrice(calcTotal(p))}€`, rightX - 6, y + 8, { align: 'right' });
+
+  if (p.notas) {
+    const notes = doc.splitTextToSize(p.notas, full - 6);
+    const needed = 18 + notes.length * 6;
+    const remaining = 297 - (y + 18);
+    if (needed > remaining) doc.addPage(), y = 16;
+    else y += 26;
+    doc.setTextColor(orange);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('NOTAS', m, y);
+    doc.setTextColor(20);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.text(notes, m, y + 10);
+  }
   const fileName = `Presupuesto_${String(p.numero||0).padStart(3,'0')}.pdf`;
   if(navigator.share && navigator.canShare){
     const blob = doc.output('blob');
