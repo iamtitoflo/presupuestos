@@ -1,9 +1,14 @@
-/** Estado por defecto de la app. */
 export const DEFAULT_STATE = {
   version: 1,
   settings: {
-    emisor: { telefono: "654317796", direccion: "Villar del Arzobispo", cp: "46170", localidad: "Higueruelas" },
-    notasDefecto: "--- FORMA DE PAGO: deberá abonarse el 40% al comienzo de los trabajos.\n• A mitad de los trabajos realizados debe estar pagado el 80% del presupuesto.\n• Al terminar se deberá abonar el 20% restante del total del presupuesto.",
+    emisor: {
+      nombre: '',
+      telefono: '654317796',
+      direccion: 'Villar del Arzobispo',
+      cp: '46170',
+      localidad: 'Higueruelas'
+    },
+    notasDefecto: '--- FORMA DE PAGO: deberá abonarse el 40% al comienzo de los trabajos.\n• A mitad de los trabajos realizados debe estar pagado el 80% del presupuesto.\n• Al terminar se deberá abonar el 20% restante del total del presupuesto.',
     ivaActivo: false,
     ivaPorcentaje: 21,
     siguienteNumero: 1
@@ -11,9 +16,8 @@ export const DEFAULT_STATE = {
   presupuestos: []
 };
 
-export const STORAGE_KEY = "presupuestos_app_v1";
+export const STORAGE_KEY = 'presupuestos_app_v1';
 
-/** @returns {any} estado completo */
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -24,12 +28,11 @@ export function loadState() {
     s.presupuestos = s.presupuestos || [];
     return s;
   } catch (e) {
-    console.error("Error loading state", e);
+    console.error('Error loading state', e);
     return structuredClone(DEFAULT_STATE);
   }
 }
 
-/** Guarda el estado en localStorage. @param {any} state */
 export function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
