@@ -258,19 +258,6 @@ export async function generatePDF(p, state) {
     y += 8;
   }
 
-  // ── FIRMA ─────────────────────────────────────────────────────────────────
-  if (y + 40 > 282) { doc.addPage(); y = 14; }
-  y += 10;
-  doc.setDrawColor(...OR_RGB);
-  doc.setLineWidth(0.3);
-  doc.line(M, y + 18, M + 68, y + 18);
-  doc.line(RIGHT_X - 68, y + 18, RIGHT_X, y + 18);
-  doc.setFontSize(8.5);
-  doc.setTextColor(GRAY);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Firma y sello', M, y + 23);
-  doc.text('Firma de aceptación del cliente', RIGHT_X - 68, y + 23);
-
   // ── SHARE / SAVE ──────────────────────────────────────────────────────────
   const clientSlug = (cliente.nombre || '').replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '').trim().replace(/\s+/g, '_').slice(0, 30);
   const fileName = `Presupuesto_${String(p.numero || 0).padStart(3, '0')}${clientSlug ? '_' + clientSlug : ''}.pdf`;
