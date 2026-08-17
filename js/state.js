@@ -21,6 +21,18 @@ export const DEFAULT_STATE = {
 
 export const STORAGE_KEY = 'presupuestos_app_v1';
 
+// Older saved data has a single `precio` per línea. Map it onto
+// cantidad × precioUnitario (cantidad 1) so existing totals are preserved.
+export function normalizeLinea(l) {
+  const out = { titulo: '', descripcion: '', cantidad: 1, precioUnitario: '', ...l };
+  if ((out.precioUnitario === '' || out.precioUnitario == null) && l.precio != null && l.precio !== '') {
+    out.precioUnitario = l.precio;
+    out.cantidad = l.cantidad ?? 1;
+  }
+  delete out.precio;
+  return out;
+}
+
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -28,7 +40,10 @@ export function loadState() {
     const s = JSON.parse(raw);
     s.settings = Object.assign({}, DEFAULT_STATE.settings, s.settings || {});
     s.settings.emisor = Object.assign({}, DEFAULT_STATE.settings.emisor, s.settings.emisor || {});
-    s.presupuestos = s.presupuestos || [];
+    s.presupuestos = (s.presupuestos || []).map(p => ({
+      ...p,
+      lineas: (p.lineas || []).map(normalizeLinea)
+    }));
     return s;
   } catch (e) {
     console.error('Error loading state', e);

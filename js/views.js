@@ -1,4 +1,4 @@
-import { calcSubtotal, calcTotal, escapeHtml, formatDate, formatPrice } from './utils.js';
+import { calcSubtotal, calcTotal, calcLineaTotal, escapeHtml, formatDate, formatPrice } from './utils.js';
 
 const SVG_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>';
 const SVG_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
@@ -68,12 +68,23 @@ export function renderEditor(state, draft) {
         <textarea class="textarea" data-line-field="descripcion" data-idx="${i}"
           placeholder="Cada línea aparecerá como un punto (•) en el PDF.">${escapeHtml(l.descripcion || '')}</textarea>
       </div>
-      <div class="field">
-        <label>Precio</label>
-        <div class="price-input">
-          <input class="input" type="number" inputmode="decimal" data-line-field="precio" data-idx="${i}"
-            value="${l.precio ?? ''}" placeholder="0" min="0"/>
+      <div class="row">
+        <div class="field field-cantidad">
+          <label>Cantidad</label>
+          <input class="input" type="number" inputmode="decimal" data-line-field="cantidad" data-idx="${i}"
+            value="${l.cantidad ?? 1}" placeholder="1" min="0" step="any"/>
         </div>
+        <div class="field">
+          <label>Precio unitario</label>
+          <div class="price-input">
+            <input class="input" type="number" inputmode="decimal" data-line-field="precioUnitario" data-idx="${i}"
+              value="${l.precioUnitario ?? ''}" placeholder="0" min="0"/>
+          </div>
+        </div>
+      </div>
+      <div class="line-subtotal-row">
+        <span>Subtotal</span>
+        <span class="line-subtotal" data-line-subtotal="${i}">${formatPrice(calcLineaTotal(l))}€</span>
       </div>
     </div>`).join('');
 
