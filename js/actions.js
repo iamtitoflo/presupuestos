@@ -64,7 +64,7 @@ export function createActions(ctx) {
           numero: num,
           fecha: todayISO(),
           cliente: { dni: '', nombre: '', direccion: '', localidad: '' },
-          lineas: [{ titulo: '', descripcion: '', cantidad: 1, precioUnitario: '' }],
+          lineas: [{ titulo: '', items: [{ texto: '', precio: '' }] }],
           notas: state.settings.notasDefecto || '',
           ivaActivo: !!state.settings.ivaActivo,
           ivaPorcentaje: state.settings.ivaPorcentaje || 21,
@@ -83,7 +83,7 @@ export function createActions(ctx) {
       await generatePDF(getUI().draft, state);
 
     } else if (action === 'add-line') {
-      ui.draft.lineas.push({ titulo: '', descripcion: '', cantidad: 1, precioUnitario: '' });
+      ui.draft.lineas.push({ titulo: '', items: [{ texto: '', precio: '' }] });
       render();
 
     } else if (action === 'duplicate') {

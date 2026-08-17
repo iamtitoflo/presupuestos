@@ -105,17 +105,12 @@ function attachHandlers() {
     });
   });
 
-  const NUMERIC_LINE_FIELDS = ['cantidad', 'precioUnitario'];
   root.querySelectorAll('[data-line-field]').forEach(el => {
     el.addEventListener('input', () => {
       const idx = parseInt(el.dataset.idx, 10);
       const field = el.dataset.lineField;
-      let val = el.value;
-      if (NUMERIC_LINE_FIELDS.includes(field)) val = val === '' ? '' : parseFloat(val);
-      if (!ui.draft.lineas[idx]) ui.draft.lineas[idx] = { titulo: '', descripcion: '', cantidad: 1, precioUnitario: '' };
-      ui.draft.lineas[idx][field] = val;
-      if (NUMERIC_LINE_FIELDS.includes(field)) updateLineSubtotal(idx);
-      updateTotalCard();
+      if (!ui.draft.lineas[idx]) ui.draft.lineas[idx] = { titulo: '', items: [{ texto: '', precio: '' }] };
+      ui.draft.lineas[idx][field] = el.value;
       scheduleAutoSave();
     });
   });
@@ -124,6 +119,41 @@ function attachHandlers() {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       ui.draft.lineas.splice(parseInt(el.dataset.removeLine, 10), 1);
+      scheduleAutoSave();
+      render();
+    });
+  });
+
+  // Item rows within a concepto (each with its own texto + precio).
+  root.querySelectorAll('[data-item-field]').forEach(el => {
+    el.addEventListener('input', () => {
+      const lineIdx = parseInt(el.dataset.lineIdx, 10);
+      const itemIdx = parseInt(el.dataset.itemIdx, 10);
+      const field = el.dataset.itemField;
+      let val = el.value;
+      if (field === 'precio') val = val === '' ? '' : parseFloat(val);
+      const linea = ui.draft.lineas[lineIdx];
+      if (!linea.items[itemIdx]) linea.items[itemIdx] = { texto: '', precio: '' };
+      linea.items[itemIdx][field] = val;
+      if (field === 'precio') { updateLineSubtotal(lineIdx); updateTotalCard(); }
+      scheduleAutoSave();
+    });
+  });
+
+  root.querySelectorAll('[data-add-item]').forEach(el => {
+    el.addEventListener('click', () => {
+      const lineIdx = parseInt(el.dataset.addItem, 10);
+      ui.draft.lineas[lineIdx].items.push({ texto: '', precio: '' });
+      render();
+    });
+  });
+
+  root.querySelectorAll('[data-remove-item]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const [lineIdx, itemIdx] = el.dataset.removeItem.split(',').map(n => parseInt(n, 10));
+      ui.draft.lineas[lineIdx].items.splice(itemIdx, 1);
+      updateTotalCard();
       scheduleAutoSave();
       render();
     });
