@@ -1,4 +1,4 @@
-import { DEFAULT_STATE, saveState } from './state.js';
+import { DEFAULT_STATE, saveState, normalizeLinea } from './state.js';
 import { setPath, todayISO, uuid } from './utils.js';
 import { generatePDF } from './pdf.js';
 
@@ -64,7 +64,7 @@ export function createActions(ctx) {
           numero: num,
           fecha: todayISO(),
           cliente: { dni: '', nombre: '', direccion: '', localidad: '' },
-          lineas: [{ titulo: '', descripcion: '', precio: '' }],
+          lineas: [{ titulo: '', descripcion: '', cantidad: 1, precioUnitario: '' }],
           notas: state.settings.notasDefecto || '',
           ivaActivo: !!state.settings.ivaActivo,
           ivaPorcentaje: state.settings.ivaPorcentaje || 21,
@@ -83,7 +83,7 @@ export function createActions(ctx) {
       await generatePDF(getUI().draft, state);
 
     } else if (action === 'add-line') {
-      ui.draft.lineas.push({ titulo: '', descripcion: '', precio: '' });
+      ui.draft.lineas.push({ titulo: '', descripcion: '', cantidad: 1, precioUnitario: '' });
       render();
 
     } else if (action === 'duplicate') {
@@ -151,6 +151,10 @@ export function createActions(ctx) {
           const next = data.state;
           next.settings = Object.assign({}, DEFAULT_STATE.settings, next.settings || {});
           next.settings.emisor = Object.assign({}, DEFAULT_STATE.settings.emisor, next.settings.emisor || {});
+          next.presupuestos = (next.presupuestos || []).map(p => ({
+            ...p,
+            lineas: (p.lineas || []).map(normalizeLinea)
+          }));
           setState(next);
           saveState(next);
           toast('✅ Datos importados');

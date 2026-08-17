@@ -308,6 +308,18 @@
     .row .field-num { max-width: 80px; flex-shrink: 0; }
     .row .field-dni { max-width: 130px; flex-shrink: 0; }
     .row .field-validez { max-width: 84px; flex-shrink: 0; }
+    .row .field-cantidad { max-width: 110px; flex-shrink: 0; }
+    /* Per-line computed subtotal (Cantidad × Precio unitario) */
+    .line-subtotal-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 10px; padding: 10px 12px;
+      background: var(--orange-light); border-radius: var(--radius-sm);
+    }
+    .line-subtotal-row span:first-child {
+      font-size: 12px; font-weight: 600; color: var(--orange-dark);
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .line-subtotal-row .line-subtotal { font-size: 16px; font-weight: 700; color: var(--orange-dark); }
     /* Line item styling */
     .line-item { background: var(--bg); }
     .line-item .field label { font-size: 13px; font-weight: 600; color: var(--text-muted); }

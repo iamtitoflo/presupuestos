@@ -21,8 +21,8 @@ Everything renders into a single `#app` div in `index.html` via full innerHTML r
 
 Module responsibilities (`js/`):
 
-- **`state.js`** — `DEFAULT_STATE` shape, `STORAGE_KEY` (`presupuestos_app_v1`), and `loadState()`/`saveState()` for reading/writing the single localStorage blob. `loadState` merges saved data over `DEFAULT_STATE` so new settings fields get defaults on older saved data.
-- **`utils.js`** — small pure helpers: `uuid()`, date/price formatting (`formatDate`, `formatPrice` — Spanish `.`/`,` grouping), `calcSubtotal`/`calcTotal` (line-item sum, optional IVA), `escapeHtml`, and `setPath(obj, "a.b.c", value)` used to write into nested state from dotted `data-field`/`data-setting` attributes.
+- **`state.js`** — `DEFAULT_STATE` shape, `STORAGE_KEY` (`presupuestos_app_v1`), and `loadState()`/`saveState()` for reading/writing the single localStorage blob. `loadState` merges saved data over `DEFAULT_STATE` so new settings fields get defaults on older saved data, and runs each línea through `normalizeLinea()` to migrate the older single-`precio` shape onto `cantidad`/`precioUnitario` (cantidad 1). `actions.js`'s import flow re-runs the same normalization on imported backups.
+- **`utils.js`** — small pure helpers: `uuid()`, date/price formatting (`formatDate`, `formatPrice` — Spanish `.`/`,` grouping), `calcCantidad`/`calcLineaTotal` (per-line cantidad × precioUnitario), `calcSubtotal`/`calcTotal` (sum of line totals, optional IVA), `escapeHtml`, and `setPath(obj, "a.b.c", value)` used to write into nested state from dotted `data-field`/`data-setting` attributes.
 - **`views.js`** — pure functions returning HTML strings: `renderHome` (list/search), `renderEditor` (presupuesto form), `renderSettings`. No side effects; they just read state/draft and interpolate (always via `escapeHtml` for user input).
 - **`actions.js`** — `createActions(ctx)` factory holding all state-mutating flows: save/duplicate/delete a presupuesto, save settings, export/import JSON backup, trigger PDF generation. Takes `{ getState, setState, getUI, setUI, render, toast }` from `main.js` so it stays decoupled from the DOM/render loop.
 - **`pdf.js`** — `generatePDF(presupuesto, state)` builds the PDF with jsPDF (global `window.jspdf`, loaded via `<script>` tag in `index.html` from a CDN, *not* as an ES import), replicating a specific orange-themed layout (header, emisor/client info, line-item table with page-break handling, total, notes, validity note). Uses `navigator.share` with file support when available, falling back to `doc.save()`.
@@ -41,7 +41,7 @@ When adding a new interactive element in a view, follow this same attribute-driv
 
 ### Data model
 
-A presupuesto: `{ id, numero, fecha, cliente: { dni, nombre, direccion, localidad }, lineas: [{ titulo, descripcion, precio }], notas, ivaActivo, ivaPorcentaje, validez, modificado }`. `numero` auto-increments from `state.settings.siguienteNumero`. Settings hold the emisor (issuer) info pre-filled into new PDFs and defaults (notes text, IVA, validity days).
+A presupuesto: `{ id, numero, fecha, cliente: { dni, nombre, direccion, localidad }, lineas: [{ titulo, descripcion, cantidad, precioUnitario }], notas, ivaActivo, ivaPorcentaje, validez, modificado }`. Each línea's total is `cantidad × precioUnitario` (`calcLineaTotal` in `utils.js`), not a stored field — the PDF shows the "cantidad × precio unitario" breakdown only when cantidad isn't 1. `numero` auto-increments from `state.settings.siguienteNumero`. Settings hold the emisor (issuer) info pre-filled into new PDFs and defaults (notes text, IVA, validity days).
 
 ### PWA / offline
 

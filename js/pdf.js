@@ -1,4 +1,4 @@
-import { calcSubtotal, calcTotal, formatDate, formatPrice } from './utils.js';
+import { calcSubtotal, calcTotal, calcCantidad, calcLineaTotal, formatDate, formatPrice } from './utils.js';
 
 export async function generatePDF(p, state) {
   const { jsPDF } = window.jspdf;
@@ -138,7 +138,10 @@ export async function generatePDF(p, state) {
   lineas.forEach(l => {
     const titulo = (l.titulo || '').trim();
     const desc = (l.descripcion || '').trim();
-    const precio = parseFloat(l.precio) || 0;
+    const cantidad = calcCantidad(l);
+    const precioUnitario = parseFloat(l.precioUnitario) || 0;
+    const precio = calcLineaTotal(l);
+    const showBreakdown = precio > 0 && cantidad !== 1;
     const maxW = DESC_W - 8;
 
     // Wrap the title too, so a long one doesn't run past the price column.
@@ -194,12 +197,25 @@ export async function generatePDF(p, state) {
       doc.text(bulletLines, M + 4, cy);
     }
 
-    // Price right-aligned, centered vertically in price column
+    // Price right-aligned, centered vertically in price column. When the
+    // quantity isn't 1, show the "cantidad × precio unitario" breakdown
+    // above the line total instead of just the total.
     if (precio > 0) {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
       doc.setTextColor(DARK);
-      doc.text(`${formatPrice(precio)}€`, RIGHT_X - 4, y + rowH / 2 + 1.5, { align: 'right' });
+      if (showBreakdown) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(GRAY);
+        doc.text(`${formatPrice(cantidad)} × ${formatPrice(precioUnitario)}€`, RIGHT_X - 4, y + rowH / 2 - 1, { align: 'right' });
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(DARK);
+        doc.text(`${formatPrice(precio)}€`, RIGHT_X - 4, y + rowH / 2 + 5, { align: 'right' });
+      } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(`${formatPrice(precio)}€`, RIGHT_X - 4, y + rowH / 2 + 1.5, { align: 'right' });
+      }
     }
 
     y += rowH;

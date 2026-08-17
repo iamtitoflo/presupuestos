@@ -1,7 +1,7 @@
-import { loadState, saveState } from './state.js';
+import { loadState, saveState, normalizeLinea } from './state.js';
 import { renderHome, renderEditor, renderSettings } from './views.js';
 import { createActions } from './actions.js';
-import { calcSubtotal, calcTotal, formatPrice, setPath } from './utils.js';
+import { calcSubtotal, calcTotal, calcLineaTotal, formatPrice, setPath } from './utils.js';
 
 let state = loadState();
 let ui = { currentView: 'home', currentPresupuestoId: null, draft: null, search: '' };
@@ -59,11 +59,15 @@ function updateTotalCard() {
 function openPresupuesto(id) {
   const p = state.presupuestos.find(x => x.id === id);
   if (!p) return;
-  // Ensure all lineas have titulo field
   const draft = structuredClone(p);
-  draft.lineas = (draft.lineas || []).map(l => ({ titulo: '', ...l }));
+  draft.lineas = (draft.lineas || []).map(normalizeLinea);
   ui = { ...ui, currentView: 'editor', currentPresupuestoId: id, draft };
   render();
+}
+
+function updateLineSubtotal(idx) {
+  const el = document.querySelector(`[data-line-subtotal="${idx}"]`);
+  if (el) el.textContent = formatPrice(calcLineaTotal(ui.draft.lineas[idx])) + '€';
 }
 
 function render() {
@@ -101,14 +105,16 @@ function attachHandlers() {
     });
   });
 
+  const NUMERIC_LINE_FIELDS = ['cantidad', 'precioUnitario'];
   root.querySelectorAll('[data-line-field]').forEach(el => {
     el.addEventListener('input', () => {
       const idx = parseInt(el.dataset.idx, 10);
       const field = el.dataset.lineField;
       let val = el.value;
-      if (field === 'precio') val = val === '' ? '' : parseFloat(val);
-      if (!ui.draft.lineas[idx]) ui.draft.lineas[idx] = { titulo: '', descripcion: '', precio: '' };
+      if (NUMERIC_LINE_FIELDS.includes(field)) val = val === '' ? '' : parseFloat(val);
+      if (!ui.draft.lineas[idx]) ui.draft.lineas[idx] = { titulo: '', descripcion: '', cantidad: 1, precioUnitario: '' };
       ui.draft.lineas[idx][field] = val;
+      if (NUMERIC_LINE_FIELDS.includes(field)) updateLineSubtotal(idx);
       updateTotalCard();
       scheduleAutoSave();
     });
