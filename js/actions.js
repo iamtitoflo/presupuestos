@@ -76,6 +76,7 @@ export function createActions(ctx) {
     } else if (action === 'save') {
       saveDraft();
       toast('✅ Presupuesto guardado');
+      render();
 
     } else if (action === 'pdf') {
       saveDraft();
@@ -92,7 +93,7 @@ export function createActions(ctx) {
       saveDraft();
       const newNum = state.settings.siguienteNumero || (state.presupuestos.length + 1);
       const clone = structuredClone(draft);
-      clone.id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+      clone.id = uuid();
       clone.numero = newNum;
       clone.fecha = new Date().toISOString().slice(0, 10);
       state.settings.siguienteNumero = newNum + 1;

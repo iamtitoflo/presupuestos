@@ -1,0 +1,14 @@
+{
+  "name": "presupuestos",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only test tooling for the Presupuestos PWA. The deployed app itself has no dependencies and no build step (see CLAUDE.md).",
+  "scripts": {
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:e2e": "node --test tests/e2e/*.test.js",
+    "test": "npm run test:unit && npm run test:e2e"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

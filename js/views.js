@@ -16,8 +16,8 @@ export function renderHome(state, search = '') {
 
   const cards = filtered.length
     ? `<div class="card-list">${filtered.map(p => `
-        <div class="card" data-open="${p.id}">
-          <div class="card-num">Nº ${String(p.numero).padStart(3, '0')}</div>
+        <div class="card" data-open="${escapeHtml(p.id)}">
+          <div class="card-num">Nº ${escapeHtml(String(p.numero).padStart(3, '0'))}</div>
           <div class="card-main">
             <div class="card-title">${escapeHtml((p.cliente && p.cliente.nombre) || '(Sin nombre)')}</div>
             <div class="card-meta">${escapeHtml(formatDate(p.fecha))}${(p.cliente && p.cliente.localidad) ? ' · ' + escapeHtml(p.cliente.localidad) : ''}</div>
@@ -58,7 +58,7 @@ export function renderEditor(state, draft) {
           placeholder="Ej: Cemento" value="${escapeHtml(it.texto || '')}"/>
         <div class="price-input item-price">
           <input class="input" type="number" inputmode="decimal" data-item-field="precio" data-line-idx="${i}" data-item-idx="${j}"
-            value="${it.precio ?? ''}" placeholder="0" min="0"/>
+            value="${escapeHtml(String(it.precio ?? ''))}" placeholder="0" min="0"/>
         </div>
         ${items.length > 1 ? `<button class="item-remove" title="Eliminar línea" data-remove-item="${i},${j}">${SVG_TRASH_SM}</button>` : ''}
       </div>`).join('');
@@ -94,7 +94,7 @@ export function renderEditor(state, draft) {
   return `
     <header class="header">
       <button class="icon-btn" data-action="back">${SVG_BACK}</button>
-      <h1>${isNew ? 'Nuevo presupuesto' : 'Presupuesto Nº ' + String(draft.numero).padStart(3, '0')}</h1>
+      <h1>${isNew ? 'Nuevo presupuesto' : 'Presupuesto Nº ' + escapeHtml(String(draft.numero).padStart(3, '0'))}</h1>
       ${!isNew ? `
         <button class="icon-btn" data-action="duplicate" title="Duplicar presupuesto">${SVG_COPY}</button>
         <button class="icon-btn" data-action="delete" title="Eliminar presupuesto" style="color:#B33">${SVG_TRASH}</button>
@@ -165,7 +165,7 @@ export function renderEditor(state, draft) {
       <div class="total-card">
         <div>
           <div class="label">TOTAL</div>
-          ${draft.ivaActivo ? `<div style="font-size:12px;opacity:0.85">Base ${formatPrice(subtotal)}€ + IVA ${draft.ivaPorcentaje}%</div>` : ''}
+          ${draft.ivaActivo ? `<div style="font-size:12px;opacity:0.85">Base ${formatPrice(subtotal)}€ + IVA ${escapeHtml(String(draft.ivaPorcentaje))}%</div>` : ''}
         </div>
         <div class="amount">${formatPrice(total)}€</div>
       </div>
@@ -185,7 +185,7 @@ export function renderEditor(state, draft) {
           <div id="iva-pct-row" class="field${draft.ivaActivo ? '' : ' hidden'}" style="margin-top:8px">
             <label>Porcentaje de IVA (%)</label>
             <input class="input" type="number" inputmode="decimal" data-field="ivaPorcentaje"
-              value="${draft.ivaPorcentaje || 21}" min="0" max="100"/>
+              value="${escapeHtml(String(draft.ivaPorcentaje || 21))}" min="0" max="100"/>
           </div>
         </div>
       </section>
@@ -259,7 +259,7 @@ export function renderSettings(state) {
           <div class="field">
             <label>Validez por defecto (días)</label>
             <input class="input" type="number" inputmode="numeric" data-setting="validezDefecto"
-              value="${s.validezDefecto || 30}" min="1"/>
+              value="${escapeHtml(String(s.validezDefecto || 30))}" min="1"/>
           </div>
           <div class="toggle-row">
             <div class="label-text">
@@ -272,7 +272,7 @@ export function renderSettings(state) {
           <div id="settings-iva-pct" class="field${s.ivaActivo ? '' : ' hidden'}" style="margin-top:8px">
             <label>Porcentaje de IVA (%)</label>
             <input class="input" type="number" inputmode="decimal" data-setting="ivaPorcentaje"
-              value="${s.ivaPorcentaje || 21}" min="0" max="100"/>
+              value="${escapeHtml(String(s.ivaPorcentaje || 21))}" min="0" max="100"/>
           </div>
         </div>
       </section>
