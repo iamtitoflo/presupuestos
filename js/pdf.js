@@ -81,32 +81,38 @@ export async function generatePDF(p, state) {
   // ── CLIENT INFO ───────────────────────────────────────────────────────────
   const cliente = p.cliente || {};
   doc.setFontSize(10);
+  const CLIENT_LH = 4.6; // extra-line spacing for wrapped values
 
-  function labelValue(label, value, xl, vOffset, yy) {
+  // maxWidth caps the value so it wraps instead of colliding with the next
+  // column (e.g. a long client name running into the Fecha field).
+  function labelValue(label, value, xl, vOffset, yy, maxWidth) {
     doc.setTextColor(ORANGE);
     doc.setFont('helvetica', 'bold');
     doc.text(label + ':', xl, yy);
     doc.setTextColor(DARK);
     doc.setFont('helvetica', 'normal');
-    doc.text(value || '', xl + vOffset, yy);
+    const lines = maxWidth ? doc.splitTextToSize(value || '', maxWidth) : [value || ''];
+    doc.text(lines, xl + vOffset, yy);
+    return lines.length;
   }
 
   // Row 1: Nombre + Fecha
-  labelValue('Nombre', cliente.nombre || '', M, 20, y);
-  labelValue('Fecha', formatDate(p.fecha), 130, 13, y);
-  y += 7;
+  const nombreLines = labelValue('Nombre', cliente.nombre || '', M, 20, y, 130 - M - 20 - 4);
+  const fechaLines = labelValue('Fecha', formatDate(p.fecha), 130, 13, y, RIGHT_X - 130 - 13);
+  y += 7 + (Math.max(nombreLines, fechaLines) - 1) * CLIENT_LH;
 
   // Row 2: Dirección (full width)
   if (cliente.direccion) {
-    labelValue('Dirección', cliente.direccion, M, 24, y);
-    y += 7;
+    const dirLines = labelValue('Dirección', cliente.direccion, M, 24, y, RIGHT_X - M - 24);
+    y += 7 + (dirLines - 1) * CLIENT_LH;
   }
 
   // Row 3: Localidad + DNI
   if (cliente.localidad || cliente.dni) {
-    if (cliente.localidad) labelValue('Localidad', cliente.localidad, M, 22, y);
-    if (cliente.dni) labelValue('DNI', cliente.dni, 120, 12, y);
-    y += 7;
+    let locLines = 1, dniLines = 1;
+    if (cliente.localidad) locLines = labelValue('Localidad', cliente.localidad, M, 22, y, 120 - M - 22 - 4);
+    if (cliente.dni) dniLines = labelValue('DNI', cliente.dni, 120, 12, y, RIGHT_X - 120 - 12);
+    y += 7 + (Math.max(locLines, dniLines) - 1) * CLIENT_LH;
   }
 
   y += 5;
@@ -135,6 +141,11 @@ export async function generatePDF(p, state) {
     const precio = parseFloat(l.precio) || 0;
     const maxW = DESC_W - 8;
 
+    // Wrap the title too, so a long one doesn't run past the price column.
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    const tituloLines = titulo ? doc.splitTextToSize(titulo, maxW) : [];
+
     // Build bullet lines from description (each newline → bullet)
     const bulletLines = [];
     if (desc) {
@@ -147,9 +158,10 @@ export async function generatePDF(p, state) {
       });
     }
 
+    const tituloBlockH = tituloLines.length ? tituloLines.length * LH + 1 : 0;
     const rowH = Math.max(
-      PAD + (titulo ? LH + 1 : 0) + bulletLines.length * LH + PAD,
-      titulo && !bulletLines.length ? 14 : 12
+      PAD + tituloBlockH + bulletLines.length * LH + PAD,
+      tituloLines.length && !bulletLines.length ? 14 : 12
     );
 
     // Page break check
@@ -167,12 +179,12 @@ export async function generatePDF(p, state) {
 
     let cy = y + PAD + LH;
 
-    if (titulo) {
+    if (tituloLines.length) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.setTextColor(DARK);
-      doc.text(titulo, M + 4, cy);
-      cy += LH + 1;
+      doc.text(tituloLines, M + 4, cy);
+      cy += tituloBlockH;
     }
 
     if (bulletLines.length > 0) {
