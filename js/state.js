@@ -21,6 +21,28 @@ export const DEFAULT_STATE = {
 
 export const STORAGE_KEY = 'presupuestos_app_v1';
 
+// A línea (concepto) holds a list of items, each with its own texto + precio;
+// the concepto's total is the sum of its items (see calcLineaTotal). Older
+// saved data used a single lump price per concepto — map it onto one item so
+// existing totals are preserved exactly.
+export function normalizeLinea(l) {
+  if (Array.isArray(l.items)) {
+    return { titulo: '', ...l, items: l.items.map(it => ({ texto: '', precio: '', ...it })) };
+  }
+  let total = '';
+  if (l.precioUnitario != null && l.precioUnitario !== '') {
+    const cantidad = l.cantidad === '' || l.cantidad == null ? 1 : (parseFloat(l.cantidad) || 0);
+    total = cantidad * (parseFloat(l.precioUnitario) || 0);
+  } else if (l.precio != null && l.precio !== '') {
+    total = l.precio;
+  }
+  const texto = (l.descripcion || '').split('\n').map(s => s.trim()).filter(Boolean).join(' · ');
+  return {
+    titulo: l.titulo || '',
+    items: [{ texto, precio: total }]
+  };
+}
+
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -28,7 +50,10 @@ export function loadState() {
     const s = JSON.parse(raw);
     s.settings = Object.assign({}, DEFAULT_STATE.settings, s.settings || {});
     s.settings.emisor = Object.assign({}, DEFAULT_STATE.settings.emisor, s.settings.emisor || {});
-    s.presupuestos = s.presupuestos || [];
+    s.presupuestos = (s.presupuestos || []).map(p => ({
+      ...p,
+      lineas: (p.lineas || []).map(normalizeLinea)
+    }));
     return s;
   } catch (e) {
     console.error('Error loading state', e);
