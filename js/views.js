@@ -72,7 +72,7 @@ export function renderEditor(state, draft) {
         <label>Precio</label>
         <div class="price-input">
           <input class="input" type="number" inputmode="decimal" data-line-field="precio" data-idx="${i}"
-            value="${l.precio ?? ''}" placeholder="0"/>
+            value="${l.precio ?? ''}" placeholder="0" min="0"/>
         </div>
       </div>
     </div>`).join('');

@@ -45,6 +45,6 @@ A presupuesto: `{ id, numero, fecha, cliente: { dni, nombre, direccion, localida
 
 ### PWA / offline
 
-`sw.js` precaches the app shell (cache name `presupuestos-v2` — bump this when precached assets change materially) with a network-first strategy for navigations and cache-first for other assets. `manifest.webmanifest` defines install metadata. Note: `index.html` currently loads jsPDF from the cdnjs CDN via `<script>`, while `sw.js` precaches `./vendor/jspdf.umd.min.js` — be aware of this mismatch if touching PDF loading or offline behavior.
+`sw.js` precaches the app shell (cache name `presupuestos-v3` — bump this when precached assets change materially) with a network-first strategy for navigations and cache-first for other assets. `manifest.webmanifest` defines install metadata. `index.html` loads jsPDF from the vendored `./vendor/jspdf.umd.min.js` (not a CDN), matching what `sw.js` precaches, so PDF generation works fully offline.
 
 `_check_0.js` at the repo root is an unused auxiliary file (per its own comment) and not referenced by the app.
