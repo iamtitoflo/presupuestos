@@ -1,7 +1,7 @@
-import { loadState, saveState } from './state.js';
+import { loadState, saveState, normalizeLinea } from './state.js';
 import { renderHome, renderEditor, renderSettings } from './views.js';
 import { createActions } from './actions.js';
-import { calcSubtotal, calcTotal, formatPrice, setPath } from './utils.js';
+import { calcSubtotal, calcTotal, calcLineaTotal, formatPrice, setPath } from './utils.js';
 
 let state = loadState();
 let ui = { currentView: 'home', currentPresupuestoId: null, draft: null, search: '' };
@@ -59,11 +59,15 @@ function updateTotalCard() {
 function openPresupuesto(id) {
   const p = state.presupuestos.find(x => x.id === id);
   if (!p) return;
-  // Ensure all lineas have titulo field
   const draft = structuredClone(p);
-  draft.lineas = (draft.lineas || []).map(l => ({ titulo: '', ...l }));
+  draft.lineas = (draft.lineas || []).map(normalizeLinea);
   ui = { ...ui, currentView: 'editor', currentPresupuestoId: id, draft };
   render();
+}
+
+function updateLineSubtotal(idx) {
+  const el = document.querySelector(`[data-line-subtotal="${idx}"]`);
+  if (el) el.textContent = formatPrice(calcLineaTotal(ui.draft.lineas[idx])) + '€';
 }
 
 function render() {
@@ -105,11 +109,8 @@ function attachHandlers() {
     el.addEventListener('input', () => {
       const idx = parseInt(el.dataset.idx, 10);
       const field = el.dataset.lineField;
-      let val = el.value;
-      if (field === 'precio') val = val === '' ? '' : parseFloat(val);
-      if (!ui.draft.lineas[idx]) ui.draft.lineas[idx] = { titulo: '', descripcion: '', precio: '' };
-      ui.draft.lineas[idx][field] = val;
-      updateTotalCard();
+      if (!ui.draft.lineas[idx]) ui.draft.lineas[idx] = { titulo: '', items: [{ texto: '', precio: '' }] };
+      ui.draft.lineas[idx][field] = el.value;
       scheduleAutoSave();
     });
   });
@@ -118,6 +119,41 @@ function attachHandlers() {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       ui.draft.lineas.splice(parseInt(el.dataset.removeLine, 10), 1);
+      scheduleAutoSave();
+      render();
+    });
+  });
+
+  // Item rows within a concepto (each with its own texto + precio).
+  root.querySelectorAll('[data-item-field]').forEach(el => {
+    el.addEventListener('input', () => {
+      const lineIdx = parseInt(el.dataset.lineIdx, 10);
+      const itemIdx = parseInt(el.dataset.itemIdx, 10);
+      const field = el.dataset.itemField;
+      let val = el.value;
+      if (field === 'precio') val = val === '' ? '' : parseFloat(val);
+      const linea = ui.draft.lineas[lineIdx];
+      if (!linea.items[itemIdx]) linea.items[itemIdx] = { texto: '', precio: '' };
+      linea.items[itemIdx][field] = val;
+      if (field === 'precio') { updateLineSubtotal(lineIdx); updateTotalCard(); }
+      scheduleAutoSave();
+    });
+  });
+
+  root.querySelectorAll('[data-add-item]').forEach(el => {
+    el.addEventListener('click', () => {
+      const lineIdx = parseInt(el.dataset.addItem, 10);
+      ui.draft.lineas[lineIdx].items.push({ texto: '', precio: '' });
+      render();
+    });
+  });
+
+  root.querySelectorAll('[data-remove-item]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const [lineIdx, itemIdx] = el.dataset.removeItem.split(',').map(n => parseInt(n, 10));
+      ui.draft.lineas[lineIdx].items.splice(itemIdx, 1);
+      updateTotalCard();
       scheduleAutoSave();
       render();
     });

@@ -1,4 +1,4 @@
-import { calcSubtotal, calcTotal, formatDate, formatPrice } from './utils.js';
+import { calcSubtotal, calcTotal, calcLineaTotal, formatDate, formatPrice } from './utils.js';
 
 export async function generatePDF(p, state) {
   const { jsPDF } = window.jspdf;
@@ -132,13 +132,13 @@ export async function generatePDF(p, state) {
   y = drawHeader(y);
 
   const lineas = (p.lineas || []).filter(l =>
-    (l.titulo || '').trim() || (l.descripcion || '').trim()
+    (l.titulo || '').trim() || (l.items || []).some(it => (it.texto || '').trim() || (parseFloat(it.precio) || 0) > 0)
   );
 
   lineas.forEach(l => {
     const titulo = (l.titulo || '').trim();
-    const desc = (l.descripcion || '').trim();
-    const precio = parseFloat(l.precio) || 0;
+    const items = (l.items || []).filter(it => (it.texto || '').trim());
+    const precio = calcLineaTotal(l);
     const maxW = DESC_W - 8;
 
     // Wrap the title too, so a long one doesn't run past the price column.
@@ -146,17 +146,14 @@ export async function generatePDF(p, state) {
     doc.setFontSize(10);
     const tituloLines = titulo ? doc.splitTextToSize(titulo, maxW) : [];
 
-    // Build bullet lines from description (each newline → bullet)
+    // Build bullet lines from the items (each one → bullet)
     const bulletLines = [];
-    if (desc) {
-      desc.split('\n').filter(s => s.trim()).forEach(raw => {
-        const trimmed = raw.trim();
-        const bullet = trimmed.startsWith('•') || trimmed.startsWith('-') ? trimmed : `• ${trimmed}`;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.splitTextToSize(bullet, maxW).forEach(line => bulletLines.push(line));
-      });
-    }
+    items.forEach(it => {
+      const trimmed = it.texto.trim();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.splitTextToSize(`• ${trimmed}`, maxW).forEach(line => bulletLines.push(line));
+    });
 
     const tituloBlockH = tituloLines.length ? tituloLines.length * LH + 1 : 0;
     const rowH = Math.max(
@@ -194,7 +191,8 @@ export async function generatePDF(p, state) {
       doc.text(bulletLines, M + 4, cy);
     }
 
-    // Price right-aligned, centered vertically in price column
+    // Price right-aligned, centered vertically in price column — the sum of
+    // this concepto's items (see calcLineaTotal).
     if (precio > 0) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
