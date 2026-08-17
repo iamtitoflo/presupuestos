@@ -21,16 +21,26 @@ export const DEFAULT_STATE = {
 
 export const STORAGE_KEY = 'presupuestos_app_v1';
 
-// Older saved data has a single `precio` per línea. Map it onto
-// cantidad × precioUnitario (cantidad 1) so existing totals are preserved.
+// A línea (concepto) holds a list of items, each with its own texto + precio;
+// the concepto's total is the sum of its items (see calcLineaTotal). Older
+// saved data used a single lump price per concepto — map it onto one item so
+// existing totals are preserved exactly.
 export function normalizeLinea(l) {
-  const out = { titulo: '', descripcion: '', cantidad: 1, precioUnitario: '', ...l };
-  if ((out.precioUnitario === '' || out.precioUnitario == null) && l.precio != null && l.precio !== '') {
-    out.precioUnitario = l.precio;
-    out.cantidad = l.cantidad ?? 1;
+  if (Array.isArray(l.items)) {
+    return { titulo: '', ...l, items: l.items.map(it => ({ texto: '', precio: '', ...it })) };
   }
-  delete out.precio;
-  return out;
+  let total = '';
+  if (l.precioUnitario != null && l.precioUnitario !== '') {
+    const cantidad = l.cantidad === '' || l.cantidad == null ? 1 : (parseFloat(l.cantidad) || 0);
+    total = cantidad * (parseFloat(l.precioUnitario) || 0);
+  } else if (l.precio != null && l.precio !== '') {
+    total = l.precio;
+  }
+  const texto = (l.descripcion || '').split('\n').map(s => s.trim()).filter(Boolean).join(' · ');
+  return {
+    titulo: l.titulo || '',
+    items: [{ texto, precio: total }]
+  };
 }
 
 export function loadState() {

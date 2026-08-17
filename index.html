@@ -308,8 +308,25 @@
     .row .field-num { max-width: 80px; flex-shrink: 0; }
     .row .field-dni { max-width: 130px; flex-shrink: 0; }
     .row .field-validez { max-width: 84px; flex-shrink: 0; }
-    .row .field-cantidad { max-width: 110px; flex-shrink: 0; }
-    /* Per-line computed subtotal (Cantidad × Precio unitario) */
+    /* Item rows within a concepto: texto + precio + eliminar */
+    .item-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .item-row .input { flex: 1; min-width: 0; }
+    .price-input.item-price { flex-shrink: 0; width: 108px; }
+    .item-remove {
+      background: transparent; border: none; padding: 4px; flex-shrink: 0;
+      color: #B33; cursor: pointer; border-radius: 6px;
+    }
+    .item-remove:active { background: #FEE; }
+    .item-remove svg { width: 17px; height: 17px; display: block; }
+    .add-item-btn {
+      width: 100%; padding: 10px; margin-top: 2px;
+      background: transparent; border: 1.5px dashed var(--border); border-radius: var(--radius-sm);
+      color: var(--orange); font-size: 13px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all 0.15s;
+    }
+    .add-item-btn:active { border-color: var(--orange); background: var(--orange-light); }
+    /* Per-line computed subtotal (suma de las líneas de la descripción) */
     .line-subtotal-row {
       display: flex; align-items: center; justify-content: space-between;
       margin-top: 10px; padding: 10px 12px;

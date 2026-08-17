@@ -4,6 +4,7 @@ const SVG_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const SVG_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
 const SVG_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>';
 const SVG_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const SVG_TRASH_SM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>';
 
 export function renderHome(state, search = '') {
   const list = state.presupuestos.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
@@ -49,7 +50,20 @@ export function renderEditor(state, draft) {
   const total = calcTotal(draft);
   const isNew = !state.presupuestos.find(x => x.id === draft.id);
 
-  const lineas = (draft.lineas || []).map((l, i) => `
+  const lineas = (draft.lineas || []).map((l, i) => {
+    const items = l.items && l.items.length ? l.items : [{ texto: '', precio: '' }];
+    const itemRows = items.map((it, j) => `
+      <div class="item-row">
+        <input class="input" type="text" data-item-field="texto" data-line-idx="${i}" data-item-idx="${j}"
+          placeholder="Ej: Cemento" value="${escapeHtml(it.texto || '')}"/>
+        <div class="price-input item-price">
+          <input class="input" type="number" inputmode="decimal" data-item-field="precio" data-line-idx="${i}" data-item-idx="${j}"
+            value="${it.precio ?? ''}" placeholder="0" min="0"/>
+        </div>
+        ${items.length > 1 ? `<button class="item-remove" title="Eliminar línea" data-remove-item="${i},${j}">${SVG_TRASH_SM}</button>` : ''}
+      </div>`).join('');
+
+    return `
     <div class="line-item">
       <div class="line-item-header">
         <span class="num">${i + 1}</span>
@@ -64,29 +78,18 @@ export function renderEditor(state, draft) {
           value="${escapeHtml(l.titulo || '')}"/>
       </div>
       <div class="field">
-        <label>Descripción</label>
-        <textarea class="textarea" data-line-field="descripcion" data-idx="${i}"
-          placeholder="Cada línea aparecerá como un punto (•) en el PDF.">${escapeHtml(l.descripcion || '')}</textarea>
-      </div>
-      <div class="row">
-        <div class="field field-cantidad">
-          <label>Cantidad</label>
-          <input class="input" type="number" inputmode="decimal" data-line-field="cantidad" data-idx="${i}"
-            value="${l.cantidad ?? 1}" placeholder="1" min="0" step="any"/>
-        </div>
-        <div class="field">
-          <label>Precio unitario</label>
-          <div class="price-input">
-            <input class="input" type="number" inputmode="decimal" data-line-field="precioUnitario" data-idx="${i}"
-              value="${l.precioUnitario ?? ''}" placeholder="0" min="0"/>
-          </div>
-        </div>
+        <label>Descripción <span class="label-optional">(una línea, un precio)</span></label>
+        ${itemRows}
+        <button class="add-item-btn" type="button" data-add-item="${i}">
+          <span style="font-size:15px;line-height:1">+</span> Añadir línea
+        </button>
       </div>
       <div class="line-subtotal-row">
         <span>Subtotal</span>
         <span class="line-subtotal" data-line-subtotal="${i}">${formatPrice(calcLineaTotal(l))}€</span>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   return `
     <header class="header">
