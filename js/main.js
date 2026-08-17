@@ -26,10 +26,23 @@ let autoSaveTimer = null;
 function scheduleAutoSave() {
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
     if (ui.currentView === 'editor' && ui.draft) {
       actions.saveDraft();
     }
   }, 600);
+}
+
+// Flushes a pending autosave immediately so quick navigation (e.g. tapping
+// "back" right after typing) never drops the last edit made within the
+// 600ms debounce window.
+function flushAutoSave() {
+  if (!autoSaveTimer) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = null;
+  if (ui.currentView === 'editor' && ui.draft) {
+    actions.saveDraft();
+  }
 }
 
 function updateTotalCard() {
@@ -65,7 +78,7 @@ function attachHandlers() {
   const root = document.getElementById('app');
 
   root.querySelectorAll('[data-action]').forEach(el =>
-    el.addEventListener('click', () => actions.handleAction(el.dataset.action))
+    el.addEventListener('click', () => { flushAutoSave(); actions.handleAction(el.dataset.action); })
   );
 
   root.querySelectorAll('[data-open]').forEach(el =>

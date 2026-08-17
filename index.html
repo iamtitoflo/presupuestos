@@ -168,7 +168,7 @@
     .input[type="number"]::-webkit-outer-spin-button {
       -webkit-appearance: none; margin: 0;
     }
-    .row { display: flex; gap: 10px; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; }
     .row .field { flex: 1; }
     /* Line items */
     .line-item {
@@ -301,13 +301,13 @@
     .settings-hint {
       font-size: 13px; color: var(--text-muted); margin: 0 0 8px;
     }
-    /* Field size helpers */
-    .field-date { max-width: 148px; flex-shrink: 0; }
-    .field-loc { max-width: 148px; }
-    .field-cp { max-width: 88px; flex-shrink: 0; }
-    .field-num { max-width: 80px; flex-shrink: 0; }
-    .field-dni { max-width: 130px; flex-shrink: 0; }
-    .field-validez { max-width: 84px; flex-shrink: 0; }
+    /* Field size helpers (scoped as ".row .field-x" to out-specificity ".row .field") */
+    .row .field-date { max-width: 148px; flex-shrink: 0; }
+    .row .field-loc { max-width: 148px; }
+    .row .field-cp { max-width: 88px; flex-shrink: 0; }
+    .row .field-num { max-width: 80px; flex-shrink: 0; }
+    .row .field-dni { max-width: 130px; flex-shrink: 0; }
+    .row .field-validez { max-width: 84px; flex-shrink: 0; }
     /* Line item styling */
     .line-item { background: var(--bg); }
     .line-item .field label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
@@ -321,7 +321,7 @@
 <body>
   <div id="app"></div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
   <script type="module" src="js/main.js"></script>
 
 </body>
