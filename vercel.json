@@ -1,5 +1,7 @@
 {
   "cleanUrls": true,
+  "buildCommand": "",
+  "installCommand": "",
   "headers": [
     {
       "source": "/sw.js",

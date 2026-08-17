@@ -1,4 +1,4 @@
-export function uuid() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9); }
+export function uuid() { return (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9); }
 export function todayISO() { return new Date().toISOString().slice(0, 10); }
 export function formatDate(iso) { if (!iso) return ""; const p = iso.split("-"); return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : iso; }
 export function formatPrice(n) { const num = Number(n) || 0; const fixed = (num % 1 === 0 ? num.toFixed(0) : num.toFixed(2)); const [i,d]=fixed.split('.'); const s=i.replace(/\B(?=(\d{3})+(?!\d))/g,'.'); return d?`${s},${d}`:s; }
