@@ -29,6 +29,8 @@ export function createActions(ctx) {
       } else if (el.value === 'true' || el.value === 'false') {
         // select with true/false string values
         val = el.value === 'true';
+      } else if (el.dataset.setting === 'ivaPorcentaje') {
+        val = clampVat(el.value);
       } else {
         val = el.value;
       }
@@ -146,8 +148,6 @@ export function createActions(ctx) {
       if (canShareFiles) {
         try { await navigator.share({ files: [file], title: 'Backup presupuestos' }); }
         catch (e) { if (e?.name === 'AbortError') return; console.error(e); }
-      } else if (el.dataset.setting === 'ivaPorcentaje') {
-        val = clampVat(el.value);
       } else {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(file);
