@@ -257,7 +257,7 @@ async function bootstrap() {
   if (deferredInstallPrompt) installBanner?.classList.remove('hidden');
   if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !navigator.standalone) {
     const message = installBanner?.querySelector('[data-install-message]');
-    if (message) message.textContent = 'En iPhone/iPad: pulsa Compartir y luego «Añadir a pantalla de inicio».');
+    if (message) message.textContent = 'En iPhone/iPad: pulsa Compartir y luego «Añadir a pantalla de inicio».';
     installBanner?.classList.remove('hidden');
   }
   if (!result.persistence.persisted) toast('⚠️ El navegador podría borrar datos. Haz una copia de seguridad.');
