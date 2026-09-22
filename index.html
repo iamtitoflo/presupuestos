@@ -13,14 +13,14 @@
   <link rel="apple-touch-icon" href="icon-192.png" />
   <style>
     :root {
-      --orange: #DD7B5C;
-      --orange-dark: #C76542;
+      --orange: #A5482D;
+      --orange-dark: #87371F;
       --orange-light: #FBE9E0;
       --bg: #FAFAF8;
       --surface: #FFFFFF;
       --border: #ECE6E2;
       --text: #2A2A2A;
-      --text-muted: #7A7570;
+      --text-muted: #6B625D;
       --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
       --radius: 12px;
       --radius-sm: 8px;
@@ -53,7 +53,7 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .icon-btn {
-      width: 40px; height: 40px; border-radius: 50%; border: none;
+      width: 44px; height: 44px; border-radius: 50%; border: none;
       background: transparent; cursor: pointer; display: flex;
       align-items: center; justify-content: center; color: var(--text);
       flex-shrink: 0; transition: background 0.15s;
@@ -236,18 +236,18 @@
       font-weight: normal; margin-top: 2px;
     }
     .toggle {
-      position: relative; width: 48px; height: 28px;
+      position: relative; width: 52px; height: 44px; border: 0;
       background: #DDD; border-radius: 14px; cursor: pointer;
       transition: background 0.2s; flex-shrink: 0;
     }
     .toggle::after {
-      content: ""; position: absolute; left: 2px; top: 2px;
+      content: ""; position: absolute; left: 4px; top: 10px;
       width: 24px; height: 24px; background: white;
       border-radius: 50%; transition: left 0.2s;
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
     .toggle.on { background: var(--orange); }
-    .toggle.on::after { left: 22px; }
+    .toggle.on::after { left: 24px; }
     /* Toast */
     .toast {
       position: fixed; bottom: calc(110px + var(--safe-bottom));
@@ -313,11 +313,11 @@
     .item-row .input { flex: 1; min-width: 0; }
     .price-input.item-price { flex-shrink: 0; width: 108px; }
     .item-remove {
-      background: transparent; border: none; padding: 4px; flex-shrink: 0;
+      background: transparent; border: none; padding: 12px; flex-shrink: 0;
       color: #B33; cursor: pointer; border-radius: 6px;
     }
     .item-remove:active { background: #FEE; }
-    .item-remove svg { width: 17px; height: 17px; display: block; }
+    .item-remove svg { width: 20px; height: 20px; display: block; }
     .add-item-btn {
       width: 100%; padding: 10px; margin-top: 2px;
       background: transparent; border: 1.5px dashed var(--border); border-radius: var(--radius-sm);
@@ -345,6 +345,12 @@
     /* Danger zone margin */
     .danger-zone { margin-top: 8px; margin-bottom: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
     .danger-zone .btn { margin-bottom: 0; }
+    @media (min-width: 900px) {
+      #app { max-width: 980px; }
+      .content { padding: 24px 32px; }
+      .row .field-date { max-width: 180px; flex: 0 0 180px; }
+      .row .field-num, .row .field-validez { flex: 0 0 130px; max-width: 130px; }
+    }
   </style>
 </head>
 <body>

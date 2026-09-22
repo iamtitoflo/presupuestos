@@ -1,11 +1,24 @@
-import { DEFAULT_STATE, saveState, normalizeLinea } from './state.js';
-import { setPath, todayISO, uuid } from './utils.js';
+import { DEFAULT_STATE, isValidBackup, normalizeLinea, saveState } from './state.js';
+import { setPath, todayISO, uuid, clampVat } from './utils.js';
 import { generatePDF } from './pdf.js';
 
 export function createActions(ctx) {
   const { getState, setState, getUI, setUI, render, toast } = ctx;
+  const storage = ctx.storage || { save: async state => { saveState(state); return state; } };
 
-  function saveSettings() {
+  async function persist(state, options) {
+    try {
+      const saved = await storage.save(state, options);
+      setState(saved);
+      return true;
+    } catch (error) {
+      console.error('No se pudo guardar', error);
+      toast('❌ No se pudo guardar. No cierres la app.');
+      return false;
+    }
+  }
+
+  async function saveSettings() {
     const state = getState();
     document.querySelectorAll('[data-setting]').forEach(el => {
       let val;
@@ -21,11 +34,11 @@ export function createActions(ctx) {
       }
       setPath(state.settings, el.dataset.setting, val);
     });
-    saveState(state);
+    await persist(state);
     toast('Ajustes guardados');
   }
 
-  function saveDraft() {
+  async function saveDraft() {
     const { draft } = getUI();
     if (!draft) return;
     const state = getState();
@@ -39,7 +52,7 @@ export function createActions(ctx) {
     } else {
       state.presupuestos[idx] = structuredClone(draft);
     }
-    saveState(state);
+    return persist(state);
   }
 
   async function handleAction(action) {
@@ -74,12 +87,12 @@ export function createActions(ctx) {
       render();
 
     } else if (action === 'save') {
-      saveDraft();
+      await saveDraft();
       toast('✅ Presupuesto guardado');
       render();
 
     } else if (action === 'pdf') {
-      saveDraft();
+      await saveDraft();
       toast('Generando PDF…');
       await generatePDF(getUI().draft, state);
 
@@ -90,7 +103,7 @@ export function createActions(ctx) {
     } else if (action === 'duplicate') {
       const { draft } = ui;
       if (!draft) return;
-      saveDraft();
+      await saveDraft();
       const newNum = state.settings.siguienteNumero || (state.presupuestos.length + 1);
       const clone = structuredClone(draft);
       clone.id = uuid();
@@ -98,7 +111,7 @@ export function createActions(ctx) {
       clone.fecha = new Date().toISOString().slice(0, 10);
       state.settings.siguienteNumero = newNum + 1;
       state.presupuestos.push(clone);
-      saveState(state);
+      await persist(state);
       toast('Presupuesto duplicado');
       setUI({ ...ui, currentView: 'editor', currentPresupuestoId: clone.id, draft: clone });
       render();
@@ -108,13 +121,13 @@ export function createActions(ctx) {
       if (!draft) return;
       if (!confirm('¿Eliminar este presupuesto?\n\nEsta acción no se puede deshacer.')) return;
       state.presupuestos = state.presupuestos.filter(x => x.id !== draft.id);
-      saveState(state);
+      await persist(state);
       toast('Presupuesto eliminado');
       setUI({ ...ui, currentView: 'home', draft: null, currentPresupuestoId: null });
       render();
 
     } else if (action === 'save-settings') {
-      saveSettings();
+      await saveSettings();
       setUI({ ...ui, currentView: 'home' });
       render();
 
@@ -122,16 +135,19 @@ export function createActions(ctx) {
       if (!confirm('⚠️ ¿Seguro que quieres BORRAR todos los presupuestos?\n\nEsta acción no se puede deshacer.')) return;
       state.presupuestos = [];
       state.settings.siguienteNumero = 1;
-      saveState(state);
+      await persist(state);
       toast('Presupuestos borrados');
       render();
 
     } else if (action === 'export') {
       const data = JSON.stringify({ type: 'presupuestos-backup', version: 1, state }, null, 2);
       const file = new File([data], 'presupuestos-backup.json', { type: 'application/json' });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      const canShareFiles = /Android/i.test(navigator.userAgent) && navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
+      if (canShareFiles) {
         try { await navigator.share({ files: [file], title: 'Backup presupuestos' }); }
-        catch (e) { if (e && e.name !== 'AbortError') console.error(e); }
+        catch (e) { if (e?.name === 'AbortError') return; console.error(e); }
+      } else if (el.dataset.setting === 'ivaPorcentaje') {
+        val = clampVat(el.value);
       } else {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(file);
@@ -139,6 +155,9 @@ export function createActions(ctx) {
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 1500);
       }
+      state.backup = { ...state.backup, lastExternalBackupAt: new Date().toISOString(), changesSinceExternalBackup: 0 };
+      await persist(state, { countAsChange: false });
+      toast('✅ Copia de seguridad creada');
 
     } else if (action === 'import') {
       const input = document.createElement('input');
@@ -149,15 +168,11 @@ export function createActions(ctx) {
         if (!f) return;
         try {
           const data = JSON.parse(await f.text());
-          const next = data.state;
-          next.settings = Object.assign({}, DEFAULT_STATE.settings, next.settings || {});
-          next.settings.emisor = Object.assign({}, DEFAULT_STATE.settings.emisor, next.settings.emisor || {});
-          next.presupuestos = (next.presupuestos || []).map(p => ({
-            ...p,
-            lineas: (p.lineas || []).map(normalizeLinea)
-          }));
-          setState(next);
-          saveState(next);
+          if (!isValidBackup(data)) throw new Error('Archivo no válido');
+          const next = { ...data.state, presupuestos: data.state.presupuestos.map(p => ({ ...p, lineas: (p.lineas || []).map(normalizeLinea) })) };
+          if (!confirm(`Vas a sustituir ${state.presupuestos.length} presupuesto(s) por ${next.presupuestos.length}. Se creará una copia de seguridad antes. ¿Continuar?`)) return;
+          const result = await storage.replaceFromImport(next);
+          setState(result.state);
           toast('✅ Datos importados');
           render();
         } catch (e) {

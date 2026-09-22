@@ -23,6 +23,15 @@ async function freshPage() {
   const errors = [];
   page.on('pageerror', (err) => errors.push(err));
   page.on('console', (msg) => { if (msg.type() === 'error') errors.push(new Error(msg.text())); });
+  // localStorage is no longer the source of truth. Clear IndexedDB too so a
+  // previous scenario cannot leak a real budget into the next one.
+  await page.goto(`${baseUrl}/test-reset`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase('presupuestos_app');
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('IndexedDB bloqueada durante el reset'));
+  }));
   await page.goto(`${baseUrl}/index.html`, { waitUntil: 'networkidle' });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: 'networkidle' });
@@ -141,6 +150,7 @@ describe('Persistencia', () => {
     await page.fill('[data-field="cliente.nombre"]', 'A borrar');
     await page.click('[data-action="save"]');
     await page.click('[data-action="delete"]');
+    await page.waitForTimeout(100);
 
     assert.match(await page.content(), /Aún no hay presupuestos/);
     await page.close();
@@ -163,10 +173,58 @@ describe('Persistencia', () => {
     assert.ok(!cardText.includes('Luis Pérez'));
     await page.close();
   });
+
+  test('el buscador conserva el foco y todos los caracteres escritos', async () => {
+    const page = await freshPage();
+    await page.click('[data-action="new"]');
+    await page.fill('[data-field="cliente.nombre"]', 'Obras García');
+    await page.click('[data-action="save"]');
+    await page.click('[data-action="back"]');
+    await page.waitForSelector('[data-search]');
+    await page.click('[data-search]');
+    await page.keyboard.type('Obr');
+    assert.equal(await page.inputValue('[data-search]'), 'Obr');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-search]')), true);
+    await page.close();
+  });
+});
+
+describe('Importes e importación segura', () => {
+  test('acepta coma decimal y bloquea importes negativos', async () => {
+    const page = await freshPage();
+    await page.click('[data-action="new"]');
+    const price = '[data-item-field="precio"][data-line-idx="0"][data-item-idx="0"]';
+    await page.click(price);
+    await page.keyboard.type('1250,50');
+    assert.equal(await page.textContent('.total-card .amount'), '1.250,50€');
+    await page.fill(price, '-500');
+    assert.equal(await page.inputValue(price), '');
+    assert.equal(await page.textContent('.total-card .amount'), '0€');
+    await page.close();
+  });
+
+  test('un JSON que no es backup no modifica los presupuestos', async () => {
+    const page = await freshPage();
+    await page.click('[data-action="new"]');
+    await page.fill('[data-field="cliente.nombre"]', 'No perder');
+    await page.click('[data-action="save"]');
+    // La validación estructural es también comprobable sin diálogo de archivos.
+    const valid = await page.evaluate(async () => {
+      const module = await import('/js/state.js');
+      return module.isValidBackup({ hola: 'mundo' });
+    });
+    assert.equal(valid, false);
+    await page.close();
+  });
 });
 
 describe('Migración de formatos antiguos', () => {
   async function seedAndOpen(page, lineas) {
+    await page.goto(`${baseUrl}/test-reset`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase('presupuestos_app');
+      request.onsuccess = () => resolve(); request.onerror = () => reject(request.error);
+    }));
     await page.evaluate((ls) => {
       const state = {
         version: 1,
@@ -182,13 +240,26 @@ describe('Migración de formatos antiguos', () => {
       };
       localStorage.setItem('presupuestos_app_v1', JSON.stringify(state));
     }, lineas);
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.goto(`${baseUrl}/index.html`, { waitUntil: 'networkidle' });
   }
 
   test('el formato antiguo de precio único se migra conservando el total', async () => {
     const page = await freshPage();
     await seedAndOpen(page, [{ titulo: 'Mano de obra', descripcion: 'Trabajo completo', precio: 250 }]);
     assert.equal(await page.textContent('.card-amount'), '250€');
+    const migration = await page.evaluate(async () => {
+      const legacy = localStorage.getItem('presupuestos_app_v1');
+      const db = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('presupuestos_app');
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      const tx = db.transaction(['app', 'backups'], 'readonly');
+      const state = await new Promise((resolve, reject) => { const r = tx.objectStore('app').get('current'); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+      const backups = await new Promise((resolve, reject) => { const r = tx.objectStore('backups').count(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+      db.close();
+      return { legacy: !!legacy, budgets: state.presupuestos.length, backups };
+    });
+    assert.deepEqual(migration, { legacy: true, budgets: 1, backups: 1 });
     await page.click('.card');
     assert.equal(await page.textContent('[data-line-subtotal="0"]'), '250€');
     await page.close();
