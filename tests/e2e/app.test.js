@@ -375,6 +375,11 @@ describe('Seguridad: sin XSS a través de campos de usuario', () => {
 
   test('un backup importado con datos corruptos en item.precio no inyecta HTML al reabrir', async () => {
     const page = await freshPage();
+    await page.goto(`${baseUrl}/test-reset`, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase('presupuestos_app');
+      request.onsuccess = () => resolve(); request.onerror = () => reject(request.error);
+    }));
     await page.evaluate(() => {
       const state = {
         version: 1,
@@ -387,7 +392,7 @@ describe('Seguridad: sin XSS a través de campos de usuario', () => {
       };
       localStorage.setItem('presupuestos_app_v1', JSON.stringify(state));
     });
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.goto(`${baseUrl}/index.html`, { waitUntil: 'networkidle' });
     await page.click('.card');
 
     const xssFlag = await page.evaluate(() => window.__xss2);
