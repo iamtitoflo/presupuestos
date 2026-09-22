@@ -101,7 +101,7 @@ describe('renderEditor', () => {
     const draft = draftWith([{ texto: 'A', precio: 10 }]);
     draft.ivaActivo = true;
     const html = renderEditor(baseState(), draft);
-    assert.match(html, /class="toggle on" data-toggle="iva"/);
+    assert.match(html, /class="toggle on"[^>]*data-toggle="iva"[^>]*role="switch"/);
   });
 });
 

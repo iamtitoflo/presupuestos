@@ -35,6 +35,9 @@ export function renderHome(state, search = '') {
       <button class="icon-btn" data-action="settings" title="Ajustes">⚙️</button>
     </header>
     <main class="content">
+      <div id="update-banner" class="install-banner hidden" role="status">Hay una versión nueva disponible.<button type="button" data-update-app>Actualizar</button></div>
+      <div id="install-banner" class="install-banner hidden" role="status"><span data-install-message>Instala la app para abrirla como una aplicación.</span><button type="button" data-install-app>Instalar</button></div>
+      ${(Number(state.backup?.changesSinceExternalBackup) >= 5 || !state.backup?.lastExternalBackupAt) ? '<div class="install-banner" role="status">Copia de seguridad recomendada para proteger tus presupuestos.<button type="button" data-action="settings">Hacer copia</button></div>' : ''}
       ${list.length ? `<div class="search-box">${SVG_SEARCH}<input type="search" data-search value="${escapeHtml(search)}" placeholder="Buscar cliente o número..."/></div>` : ''}
       ${cards}
     </main>
@@ -57,8 +60,8 @@ export function renderEditor(state, draft) {
         <input class="input" type="text" data-item-field="texto" data-line-idx="${i}" data-item-idx="${j}"
           placeholder="Ej: Cemento" value="${escapeHtml(it.texto || '')}"/>
         <div class="price-input item-price">
-          <input class="input" type="number" inputmode="decimal" data-item-field="precio" data-line-idx="${i}" data-item-idx="${j}"
-            value="${escapeHtml(String(it.precio ?? ''))}" placeholder="0" min="0"/>
+          <input class="input" type="text" inputmode="decimal" data-item-field="precio" data-line-idx="${i}" data-item-idx="${j}"
+            value="${escapeHtml(String(it.precio ?? ''))}" placeholder="0,00" aria-label="Precio de la línea ${j + 1}"/>
         </div>
         ${items.length > 1 ? `<button class="item-remove" title="Eliminar línea" data-remove-item="${i},${j}">${SVG_TRASH_SM}</button>` : ''}
       </div>`).join('');
@@ -93,7 +96,7 @@ export function renderEditor(state, draft) {
 
   return `
     <header class="header">
-      <button class="icon-btn" data-action="back">${SVG_BACK}</button>
+      <button class="icon-btn" data-action="back" aria-label="Volver a presupuestos">${SVG_BACK}</button>
       <h1>${isNew ? 'Nuevo presupuesto' : 'Presupuesto Nº ' + escapeHtml(String(draft.numero).padStart(3, '0'))}</h1>
       ${!isNew ? `
         <button class="icon-btn" data-action="duplicate" title="Duplicar presupuesto">${SVG_COPY}</button>
@@ -108,16 +111,16 @@ export function renderEditor(state, draft) {
           <div class="row">
             <div class="field field-num">
               <label>Número</label>
-              <input class="input" type="number" inputmode="numeric" data-field="numero"
+              <input class="input" type="number" inputmode="numeric" aria-label="Número de presupuesto" data-field="numero"
                 value="${escapeHtml(String(draft.numero || ''))}"/>
             </div>
-            <div class="field">
+            <div class="field field-date">
               <label>Fecha</label>
-              <input class="input" type="date" data-field="fecha" value="${escapeHtml(draft.fecha || '')}"/>
+              <input class="input" type="date" inputmode="numeric" pattern="\\d{4}-\\d{2}-\\d{2}" placeholder="AAAA-MM-DD" aria-label="Fecha del presupuesto" data-field="fecha" value="${escapeHtml(draft.fecha || '')}"/>
             </div>
             <div class="field field-validez">
               <label>Validez (días)</label>
-              <input class="input" type="number" inputmode="numeric" data-field="validez"
+              <input class="input" type="number" inputmode="numeric" aria-label="Validez en días" data-field="validez"
                 value="${escapeHtml(String(draft.validez ?? 30))}" min="1"/>
             </div>
           </div>
@@ -129,23 +132,23 @@ export function renderEditor(state, draft) {
         <div class="section-body">
           <div class="field">
             <label>Nombre</label>
-            <input class="input" data-field="cliente.nombre" placeholder="Nombre completo"
+            <input class="input" data-field="cliente.nombre" aria-label="Nombre del cliente" placeholder="Nombre completo"
               value="${escapeHtml((draft.cliente && draft.cliente.nombre) || '')}"/>
           </div>
           <div class="field">
             <label>Dirección</label>
-            <input class="input" data-field="cliente.direccion" placeholder="Calle, número…"
+            <input class="input" data-field="cliente.direccion" aria-label="Dirección del cliente" placeholder="Calle, número…"
               value="${escapeHtml((draft.cliente && draft.cliente.direccion) || '')}"/>
           </div>
           <div class="row">
             <div class="field">
               <label>Localidad</label>
-              <input class="input" data-field="cliente.localidad" placeholder="Pueblo / Ciudad"
+              <input class="input" data-field="cliente.localidad" aria-label="Localidad del cliente" placeholder="Pueblo / Ciudad"
                 value="${escapeHtml((draft.cliente && draft.cliente.localidad) || '')}"/>
             </div>
             <div class="field field-dni">
               <label>DNI</label>
-              <input class="input" data-field="cliente.dni" placeholder="12345678A"
+              <input class="input" data-field="cliente.dni" aria-label="DNI del cliente" placeholder="12345678A"
                 value="${escapeHtml((draft.cliente && draft.cliente.dni) || '')}"/>
             </div>
           </div>
@@ -173,19 +176,19 @@ export function renderEditor(state, draft) {
       <section class="section">
         <div class="section-header">Notas y condiciones de pago</div>
         <div class="section-body">
-          <textarea class="textarea" data-field="notas" style="min-height:160px"
+          <textarea class="textarea" data-field="notas" aria-label="Notas y condiciones de pago" style="min-height:160px"
             placeholder="Forma de pago, observaciones…">${escapeHtml(draft.notas || '')}</textarea>
           <div class="toggle-row" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
             <div class="label-text">
               IVA
               <small>¿Añadir IVA a este presupuesto?</small>
             </div>
-            <div class="toggle${draft.ivaActivo ? ' on' : ''}" data-toggle="iva"></div>
+            <button class="toggle${draft.ivaActivo ? ' on' : ''}" type="button" data-toggle="iva" role="switch" aria-checked="${draft.ivaActivo}" aria-label="Añadir IVA al presupuesto"></button>
           </div>
           <div id="iva-pct-row" class="field${draft.ivaActivo ? '' : ' hidden'}" style="margin-top:8px">
             <label>Porcentaje de IVA (%)</label>
-            <input class="input" type="number" inputmode="decimal" data-field="ivaPorcentaje"
-              value="${escapeHtml(String(draft.ivaPorcentaje || 21))}" min="0" max="100"/>
+            <input class="input" type="text" inputmode="decimal" data-field="ivaPorcentaje"
+              value="${escapeHtml(String(draft.ivaPorcentaje || 21))}" aria-label="Porcentaje de IVA entre 0 y 100"/>
           </div>
         </div>
       </section>
@@ -203,7 +206,7 @@ export function renderSettings(state) {
   const count = state.presupuestos.length;
   return `
     <header class="header">
-      <button class="icon-btn" data-action="back">${SVG_BACK}</button>
+      <button class="icon-btn" data-action="back" aria-label="Volver a presupuestos">${SVG_BACK}</button>
       <h1>Ajustes</h1>
     </header>
     <main class="content">
@@ -212,41 +215,41 @@ export function renderSettings(state) {
         <div class="section-body">
           <div class="field">
             <label>Nombre o empresa <span class="label-optional">(aparece en el PDF)</span></label>
-            <input class="input" data-setting="emisor.nombre" placeholder="Tu nombre o empresa"
+            <input class="input" data-setting="emisor.nombre" aria-label="Nombre o empresa" placeholder="Tu nombre o empresa"
               value="${escapeHtml(e.nombre || '')}"/>
           </div>
           <div class="row">
             <div class="field">
               <label>NIF / CIF</label>
-              <input class="input" data-setting="emisor.nif" placeholder="12345678A"
+              <input class="input" data-setting="emisor.nif" aria-label="NIF o CIF" placeholder="12345678A"
                 value="${escapeHtml(e.nif || '')}"/>
             </div>
             <div class="field">
               <label>Teléfono</label>
-              <input class="input" type="tel" inputmode="tel" data-setting="emisor.telefono"
+              <input class="input" type="tel" inputmode="tel" aria-label="Teléfono" data-setting="emisor.telefono"
                 value="${escapeHtml(e.telefono || '')}"/>
             </div>
           </div>
           <div class="field">
             <label>Email <span class="label-optional">(opcional)</span></label>
-            <input class="input" type="email" inputmode="email" data-setting="emisor.email"
+            <input class="input" type="email" inputmode="email" aria-label="Correo electrónico" data-setting="emisor.email"
               placeholder="correo@ejemplo.com"
               value="${escapeHtml(e.email || '')}"/>
           </div>
           <div class="field">
             <label>Dirección</label>
-            <input class="input" data-setting="emisor.direccion"
+            <input class="input" data-setting="emisor.direccion" aria-label="Dirección del emisor"
               value="${escapeHtml(e.direccion || '')}"/>
           </div>
           <div class="row">
             <div class="field field-cp">
               <label>CP</label>
-              <input class="input" inputmode="numeric" data-setting="emisor.cp"
+              <input class="input" inputmode="numeric" data-setting="emisor.cp" aria-label="Código postal"
                 value="${escapeHtml(e.cp || '')}"/>
             </div>
             <div class="field">
               <label>Localidad</label>
-              <input class="input" data-setting="emisor.localidad"
+              <input class="input" data-setting="emisor.localidad" aria-label="Localidad del emisor"
                 value="${escapeHtml(e.localidad || '')}"/>
             </div>
           </div>
@@ -258,7 +261,7 @@ export function renderSettings(state) {
         <div class="section-body">
           <div class="field">
             <label>Validez por defecto (días)</label>
-            <input class="input" type="number" inputmode="numeric" data-setting="validezDefecto"
+            <input class="input" type="number" inputmode="numeric" data-setting="validezDefecto" aria-label="Validez por defecto en días"
               value="${escapeHtml(String(s.validezDefecto || 30))}" min="1"/>
           </div>
           <div class="toggle-row">
@@ -266,13 +269,13 @@ export function renderSettings(state) {
               Aplicar IVA
               <small>Los nuevos presupuestos tendrán IVA activado</small>
             </div>
-            <div class="toggle${s.ivaActivo ? ' on' : ''}" data-toggle="iva-setting"></div>
+            <button class="toggle${s.ivaActivo ? ' on' : ''}" type="button" data-toggle="iva-setting" role="switch" aria-checked="${s.ivaActivo}" aria-label="Aplicar IVA por defecto"></button>
           </div>
           <input type="hidden" id="ivaActivoHidden" data-setting="ivaActivo" value="${s.ivaActivo ? 'true' : 'false'}">
           <div id="settings-iva-pct" class="field${s.ivaActivo ? '' : ' hidden'}" style="margin-top:8px">
             <label>Porcentaje de IVA (%)</label>
-            <input class="input" type="number" inputmode="decimal" data-setting="ivaPorcentaje"
-              value="${escapeHtml(String(s.ivaPorcentaje || 21))}" min="0" max="100"/>
+            <input class="input" type="text" inputmode="decimal" data-setting="ivaPorcentaje"
+              value="${escapeHtml(String(s.ivaPorcentaje || 21))}" aria-label="Porcentaje de IVA entre 0 y 100"/>
           </div>
         </div>
       </section>
@@ -281,7 +284,7 @@ export function renderSettings(state) {
         <div class="section-header">Notas por defecto</div>
         <div class="section-body">
           <p class="settings-hint">Se añaden automáticamente a cada nuevo presupuesto.</p>
-          <textarea class="textarea" data-setting="notasDefecto" style="min-height:130px">${escapeHtml(s.notasDefecto || '')}</textarea>
+          <textarea class="textarea" data-setting="notasDefecto" aria-label="Notas por defecto" style="min-height:130px">${escapeHtml(s.notasDefecto || '')}</textarea>
         </div>
       </section>
 

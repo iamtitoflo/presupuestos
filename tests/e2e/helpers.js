@@ -23,6 +23,7 @@ export function startServer() {
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
       let reqPath = decodeURIComponent(req.url.split('?')[0]);
+      if (reqPath === '/test-reset') { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end('<!doctype html>'); return; }
       if (reqPath === '/') reqPath = '/index.html';
       const filePath = path.join(ROOT, reqPath);
       if (!filePath.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
